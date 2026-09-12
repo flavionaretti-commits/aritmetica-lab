@@ -18,14 +18,15 @@ const CATALOG = [
   {section:'CILINDRI', type:'cylOps', name:'Operazioni', hint:'+ − × :', preview:'×', kind:'cyl', values:['+','−','×',':']},
   {section:'CILINDRI', type:'cylCompare3', name:'Confronto', hint:'= > <', preview:'=', kind:'cyl', values:['=','>','<']},
   {section:'CILINDRI', type:'cylRelations5', name:'Relazioni', hint:'= ≈ ≠ > <', preview:'≈', kind:'cyl', values:['=','≈','≠','>','<']},
-  {section:'ELEMENTI GRAFICI', type:'fractionLine', name:'Linea di frazione', hint:'lunghezza regolabile', preview:'━', kind:'line', values:[]}
+  {section:'ELEMENTI GRAFICI', type:'fractionLine', name:'Linea di frazione', hint:'lunghezza regolabile', preview:'━', kind:'line', values:[]},
+  {section:'ELEMENTI GRAFICI', type:'answerPrompt', name:'Risultato da trovare', hint:'simbolo luminoso =?', preview:'=?', kind:'symbol', values:[]}
 ];
 const BY_TYPE = Object.fromEntries(CATALOG.map(x=>[x.type,x]));
 
 const $ = s => document.querySelector(s);
 const els = {
   home: $('#homeScreen'), work: $('#workScreen'), workspace: $('#workspace'), domLayer: $('#domLayer'), canvas: $('#diceCanvas'), empty: $('#emptyHint'),
-  homeTheme: $('#homeThemeBtn'), theme: $('#themeBtn'), sound: $('#soundBtn'), magnet: $('#magnetBtn'), mode: $('#modeBtn'), modeLabel: $('#modeLabel'),
+  homeTheme: $('#homeThemeBtn'), homeInfo: $('#homeInfoBtn'), info: $('#infoBtn'), infoDialog: $('#infoDialog'), theme: $('#themeBtn'), sound: $('#soundBtn'), magnet: $('#magnetBtn'), mode: $('#modeBtn'), modeLabel: $('#modeLabel'),
   newTable: $('#newTableBtn'), lastTable: $('#lastTableBtn'), configs: $('#configsBtn'), backHome: $('#backHomeBtn'),
   addElements: $('#addElementsBtn'), autoLayout: $('#autoLayoutBtn'), selectedActions: $('#selectedActions'), duplicate: $('#duplicateBtn'), delete: $('#deleteBtn'),
   elementCounter: $('#elementCounter'), compositionActions: $('#compositionActions'), gameActions: $('#gameActions'), shuffleAll: $('#shuffleAllBtn'), unpinAll: $('#unpinAllBtn'),
@@ -106,12 +107,38 @@ function labelTexture(label,color,isFraction=false){
 }
 function lighten(hex,p){const n=parseInt(hex.slice(1),16),r=n>>16,g=(n>>8)&255,b=n&255;const q=p/100;return `rgb(${Math.round(r+(255-r)*q)},${Math.round(g+(255-g)*q)},${Math.round(b+(255-b)*q)})`;}
 function makeMaterials(def){ return def.values.map(v=>new THREE.MeshStandardMaterial({map:labelTexture(v,def.color||'#2865a8',def.type==='die20fraction'),roughness:.42,metalness:.08})); }
-function normalFromGroup(geometry,groupIndex){
-  const group=geometry.groups[groupIndex]; if(!group) return new THREE.Vector3(0,0,1);
-  const pos=geometry.attributes.position, idx=geometry.index; const ids=[];
-  for(let k=0;k<3;k++) ids.push(idx?idx.getX(group.start+k):group.start+k);
-  const a=new THREE.Vector3().fromBufferAttribute(pos,ids[0]),b=new THREE.Vector3().fromBufferAttribute(pos,ids[1]),c=new THREE.Vector3().fromBufferAttribute(pos,ids[2]);
-  return new THREE.Vector3().crossVectors(new THREE.Vector3().subVectors(b,a),new THREE.Vector3().subVectors(c,a)).normalize();
+function faceQuaternionFromGroup(geometry,groupIndex){
+  const group=geometry.groups[groupIndex];
+  if(!group) return new THREE.Quaternion();
+  const pos=geometry.attributes.position, uv=geometry.attributes.uv, idx=geometry.index;
+  const ids=[]; for(let k=0;k<3;k++) ids.push(idx?idx.getX(group.start+k):group.start+k);
+  const p0=new THREE.Vector3().fromBufferAttribute(pos,ids[0]);
+  const p1=new THREE.Vector3().fromBufferAttribute(pos,ids[1]);
+  const p2=new THREE.Vector3().fromBufferAttribute(pos,ids[2]);
+  const normal=new THREE.Vector3().crossVectors(new THREE.Vector3().subVectors(p1,p0),new THREE.Vector3().subVectors(p2,p0)).normalize();
+
+  // Ricava il "verso alto" della texture sulla faccia. In questo modo, dopo il lancio,
+  // non basta avere la faccia davanti: numeri e simboli arrivano anche perfettamente diritti.
+  let up=new THREE.Vector3(0,1,0);
+  if(uv){
+    const uv0=new THREE.Vector2().fromBufferAttribute(uv,ids[0]);
+    const uv1=new THREE.Vector2().fromBufferAttribute(uv,ids[1]);
+    const uv2=new THREE.Vector2().fromBufferAttribute(uv,ids[2]);
+    const e1=new THREE.Vector3().subVectors(p1,p0), e2=new THREE.Vector3().subVectors(p2,p0);
+    const du1=uv1.x-uv0.x, dv1=uv1.y-uv0.y, du2=uv2.x-uv0.x, dv2=uv2.y-uv0.y;
+    const det=du1*dv2-du2*dv1;
+    if(Math.abs(det)>1e-8){
+      // dP/dv = (-du2*e1 + du1*e2) / det
+      up=e1.clone().multiplyScalar(-du2).add(e2.clone().multiplyScalar(du1)).multiplyScalar(1/det);
+      up.addScaledVector(normal,-up.dot(normal));
+      if(up.lengthSq()>1e-8) up.normalize(); else up.set(0,1,0);
+    }
+  }
+  // Base destrorsa della faccia: X=destra, Y=alto, Z=normale.
+  const right=new THREE.Vector3().crossVectors(up,normal).normalize();
+  up=new THREE.Vector3().crossVectors(normal,right).normalize();
+  const sourceBasis=new THREE.Matrix4().makeBasis(right,up,normal);
+  return new THREE.Quaternion().setFromRotationMatrix(sourceBasis).invert();
 }
 function remapTriangleUVs(geom,faces){
   const uv=geom.attributes.uv; if(!uv) return;
@@ -122,14 +149,14 @@ function createDieMesh(item){
   if(item.type.startsWith('die6')) geom=new THREE.BoxGeometry(1,1,1,1,1,1);
   else if(item.type==='die8mixed'){ geom=new THREE.OctahedronGeometry(1,0); if(geom.index) geom=geom.toNonIndexed(); remapTriangleUVs(geom,8); geom.clearGroups(); for(let i=0;i<8;i++) geom.addGroup(i*3,3,i); }
   else { geom=new THREE.IcosahedronGeometry(1,0); if(geom.index) geom=geom.toNonIndexed(); remapTriangleUVs(geom,20); geom.clearGroups(); for(let i=0;i<20;i++) geom.addGroup(i*3,3,i); }
-  const mats=makeMaterials(def); const mesh=new THREE.Mesh(geom,mats);mesh.userData.id=item.id;mesh.userData.faceNormals=def.values.map((_,i)=>normalFromGroup(geom,i));
+  const mats=makeMaterials(def); const mesh=new THREE.Mesh(geom,mats);mesh.userData.id=item.id;mesh.userData.faceQuaternions=def.values.map((_,i)=>faceQuaternionFromGroup(geom,i));
   const edges=new THREE.LineSegments(new THREE.EdgesGeometry(geom,15),new THREE.LineBasicMaterial({color:0xffffff,transparent:true,opacity:.42}));mesh.add(edges);scene.add(mesh);diceMeshes.set(item.id,mesh);
   const idx=Number.isInteger(item.value)?item.value:0; orientDie(mesh,idx,false); return mesh;
 }
 function orientDie(mesh,faceIndex,animate=true,duration=900,delay=0){
-  const normal=(mesh.userData.faceNormals[faceIndex]||new THREE.Vector3(0,0,1)).clone().normalize();
-  const target=new THREE.Quaternion().setFromUnitVectors(normal,new THREE.Vector3(0,0,1));
-  const twist=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,0,1),(Math.random()-.5)*Math.PI*2); target.premultiply(twist);
+  // La faccia estratta termina sempre frontale e con il testo parallelo alla base dello schermo.
+  // La casualità resta nella rotazione durante il lancio, non nell'orientamento finale.
+  const target=(mesh.userData.faceQuaternions?.[faceIndex]||new THREE.Quaternion()).clone();
   if(!animate){mesh.quaternion.copy(target);return;}
   diceAnimations.set(mesh.userData.id,{start:performance.now()+delay,duration,startQ:mesh.quaternion.clone(),targetQ:target,axis:new THREE.Vector3(Math.random()+.2,Math.random()+.2,Math.random()+.2).normalize()});
 }
@@ -147,7 +174,7 @@ function resizeRenderer(){
 function updateVisualPositions(){
   const w=els.workspace.clientWidth||1,h=els.workspace.clientHeight||1,size=itemSize();
   for(const it of state.items){const def=BY_TYPE[it.type];if(def.kind==='die'){const m=diceMeshes.get(it.id);if(!m)continue;m.position.set(it.x*w-w/2,h/2-it.y*h,0);const scale=it.type.startsWith('die6')?size:it.type==='die8mixed'?size*.67:size*.60;m.scale.setScalar(scale);}
-    const el=els.domLayer.querySelector(`[data-id="${it.id}"]`);if(el){el.style.left=(it.x*100)+'%';el.style.top=(it.y*100)+'%';if(def.kind==='die'){el.style.width=size+'px';el.style.height=size+'px';}else if(def.kind==='cyl'){el.style.width=(size*.72)+'px';el.style.height=(size*1.05)+'px';el.style.setProperty('--cyl-font',Math.max(26,size*.46)+'px');}else{el.style.width=(it.width||Math.max(110,size*1.7))+'px';}}}
+    const el=els.domLayer.querySelector(`[data-id="${it.id}"]`);if(el){el.style.left=(it.x*100)+'%';el.style.top=(it.y*100)+'%';if(def.kind==='die'){el.style.width=size+'px';el.style.height=size+'px';}else if(def.kind==='cyl'){el.style.width=(size*.72)+'px';el.style.height=(size*1.05)+'px';el.style.setProperty('--cyl-font',Math.max(26,size*.46)+'px');}else if(def.kind==='line'){el.style.width=(it.width||Math.max(110,size*1.7))+'px';}else if(def.kind==='symbol'){el.style.width=(size*1.14)+'px';el.style.height=(size*.76)+'px';el.style.setProperty('--prompt-font',Math.max(28,size*.48)+'px');}}}
 }
 function animationLoop(now){
   const dt=now-lastFrame;lastFrame=now;
@@ -162,7 +189,8 @@ function renderItems(){
   for(const item of state.items){const def=BY_TYPE[item.type];let el=document.createElement('div');el.dataset.id=item.id;el.className='workspace-item '+(item.pinned?'pinned ':'');
     if(def.kind==='die'){el.classList.add('die-hit');el.innerHTML='<span class="item-pin">📌</span>';}
     else if(def.kind==='cyl'){el.classList.add('cylinder');el.innerHTML='<span class="item-pin">📌</span><div class="cyl-window"><div class="cyl-track"><div class="cyl-cell prev"></div><div class="cyl-cell current"></div><div class="cyl-cell next"></div></div><div class="cyl-guide"></div><div class="cyl-shine"></div></div>';setCylinderCells(el,item);}
-    else {el.classList.add('fraction-line');el.innerHTML='<div class="line-core"></div><span class="resize-handle left" data-resize="left"></span><span class="resize-handle right" data-resize="right"></span>';}
+    else if(def.kind==='line'){el.classList.add('fraction-line');el.innerHTML='<div class="line-core"></div><span class="resize-handle left" data-resize="left"></span><span class="resize-handle right" data-resize="right"></span>';}
+    else if(def.kind==='symbol'){el.classList.add('answer-prompt');el.innerHTML='<span>=?</span>';}
     if(item.id===state.selectedId)el.classList.add('selected');els.domLayer.appendChild(el);
   }
   els.empty.classList.toggle('hidden',state.items.length>0); updateCounter(); updateSelectionUI(); updateVisualPositions();
@@ -182,12 +210,12 @@ function applyModeUI(){
 
 // ---------------- Catalogo ----------------
 function renderCatalog(){
-  const sections=[...new Set(CATALOG.map(x=>x.section))];els.catalogList.innerHTML=sections.map(sec=>`<div class="cat-section"><div class="cat-section-title">${sec}</div>${CATALOG.filter(x=>x.section===sec).map(d=>`<div class="cat-row" data-type="${d.type}"><div class="cat-preview ${d.kind==='cyl'?'cyl':d.kind==='line'?'line':''}">${d.preview}</div><div class="cat-info"><b>${d.name}</b><small>${d.hint}</small></div><div class="stepper"><button data-delta="-1">−</button><span>${state.catalogCounts[d.type]||0}</span><button data-delta="1">+</button></div></div>`).join('')}</div>`).join('');updateCatalogCounter();
+  const sections=[...new Set(CATALOG.map(x=>x.section))];els.catalogList.innerHTML=sections.map(sec=>`<div class="cat-section"><div class="cat-section-title">${sec}</div>${CATALOG.filter(x=>x.section===sec).map(d=>`<div class="cat-row" data-type="${d.type}"><div class="cat-preview ${d.kind==='cyl'?'cyl':d.kind==='line'?'line':d.kind==='symbol'?'symbol':''}">${d.preview}</div><div class="cat-info"><b>${d.name}</b><small>${d.hint}</small></div><div class="stepper"><button data-delta="-1">−</button><span>${state.catalogCounts[d.type]||0}</span><button data-delta="1">+</button></div></div>`).join('')}</div>`).join('');updateCatalogCounter();
 }
 function catalogPending(){return Object.values(state.catalogCounts).reduce((a,b)=>a+b,0)}
 function updateCatalogCounter(){const p=catalogPending();els.catalogCounter.textContent=`${state.items.length+p} / ${MAX_ITEMS}`;els.catalogAdd.disabled=p===0||state.items.length+p>MAX_ITEMS;els.catalogAdd.style.opacity=els.catalogAdd.disabled?'.45':'1';}
-function openCatalog(){if(state.mode!=='composition')return;renderCatalog();els.catalogPanel.classList.add('open');els.catalogPanel.setAttribute('aria-hidden','false');els.panelShade.classList.add('show');}
-function closeCatalog(){els.catalogPanel.classList.remove('open');els.catalogPanel.setAttribute('aria-hidden','true');els.panelShade.classList.remove('show');}
+function openCatalog(){if(state.mode!=='composition')return;renderCatalog();els.catalogPanel.style.pointerEvents='auto';els.catalogPanel.setAttribute('aria-hidden','false');requestAnimationFrame(()=>{els.catalogPanel.classList.add('open');els.panelShade.classList.add('show');});}
+function closeCatalog(){els.catalogPanel.classList.remove('open');els.catalogPanel.setAttribute('aria-hidden','true');els.panelShade.classList.remove('show');setTimeout(()=>{if(!els.catalogPanel.classList.contains('open'))els.catalogPanel.style.pointerEvents='none';},260);}
 function addPending(){const total=catalogPending();if(!total)return;if(state.items.length+total>MAX_ITEMS){toast('Massimo 20 elementi');return;}for(const [type,count] of Object.entries(state.catalogCounts)){for(let k=0;k<count;k++)addItem(type,false);}state.catalogCounts={};autoLayout(true);renderCatalog();closeCatalog();rebuildAll();soundClick();}
 function addItem(type,render=true){const def=BY_TYPE[type];const item={id:uid(),type,x:.5+(Math.random()-.5)*.08,y:.5+(Math.random()-.5)*.08,pinned:false,value:def.values?.length?Math.floor(Math.random()*def.values.length):0};if(def.kind==='line')item.width=150;state.items.push(item);if(render)rebuildAll();return item;}
 
@@ -196,7 +224,7 @@ let interaction=null;
 function pointFraction(e){const r=els.workspace.getBoundingClientRect();return {x:clamp((e.clientX-r.left)/r.width,.025,.975),y:clamp((e.clientY-r.top)/r.height,.04,.96),px:e.clientX-r.left,py:e.clientY-r.top,w:r.width,h:r.height};}
 function snapPosition(item,x,y){if(!state.magnetOn)return{x,y};const w=els.workspace.clientWidth,h=els.workspace.clientHeight,th=15;for(const o of state.items){if(o.id===item.id)continue;if(Math.abs((o.x-x)*w)<th)x=o.x;if(Math.abs((o.y-y)*h)<th)y=o.y;}return{x,y};}
 function selectItem(id){state.selectedId=id;updateSelectionUI();}
-function togglePin(item){if(BY_TYPE[item.type].kind==='line')return;item.pinned=!item.pinned;updateItemPin(item.id);soundPin();toast(item.pinned?'Risultato congelato 📌':'Risultato sbloccato');saveLast();}
+function togglePin(item){if(!['die','cyl'].includes(BY_TYPE[item.type].kind))return;item.pinned=!item.pinned;updateItemPin(item.id);soundPin();toast(item.pinned?'Risultato congelato 📌':'Risultato sbloccato');saveLast();}
 
 els.domLayer.addEventListener('pointerdown',e=>{
   const el=e.target.closest('.workspace-item');if(!el)return;const item=state.items.find(x=>x.id===el.dataset.id);if(!item)return;ensureAudio();
@@ -206,7 +234,7 @@ els.domLayer.addEventListener('pointerdown',e=>{
     const handle=e.target.closest('[data-resize]');
     interaction={kind:handle?'resize':'move',item,el,startX:e.clientX,startY:e.clientY,startItemX:item.x,startItemY:item.y,startWidth:item.width||150,side:handle?.dataset.resize,moved:false};
   } else {
-    if(BY_TYPE[item.type].kind==='line')return;
+    if(!['die','cyl'].includes(BY_TYPE[item.type].kind))return;
     interaction={kind:'game',item,el,startX:e.clientX,startY:e.clientY,lastStepY:e.clientY,moved:false,long:false};
     interaction.longTimer=setTimeout(()=>{if(interaction&&interaction.item.id===item.id&&!interaction.moved){interaction.long=true;togglePin(item);}},620);
   }
@@ -235,12 +263,13 @@ function spinCylinder(item,delay=0,duration=750){
 }
 function rollDie(item,delay=0,duration=900){if(item.pinned)return;const def=BY_TYPE[item.type],idx=Math.floor(Math.random()*def.values.length);item.value=idx;setTimeout(soundRoll,delay);const m=diceMeshes.get(item.id);if(m)orientDie(m,idx,true,duration,delay);setTimeout(()=>soundClick(),delay+duration*.9);saveLast();}
 function randomizeItem(item){const k=BY_TYPE[item.type].kind;if(k==='die')rollDie(item,0,900+Math.random()*250);else if(k==='cyl')spinCylinder(item,0,650+Math.random()*300);}
-function shuffleAll(){const active=state.items.filter(i=>!i.pinned&&BY_TYPE[i.type].kind!=='line');if(!active.length){toast('Nessun elemento da mescolare');return;}active.forEach((it,i)=>{const delay=Math.random()*180,dur=720+Math.random()*520;if(BY_TYPE[it.type].kind==='die')rollDie(it,delay,dur);else spinCylinder(it,delay,dur);});}
+function shuffleAll(){const active=state.items.filter(i=>!i.pinned&&['die','cyl'].includes(BY_TYPE[i.type].kind));if(!active.length){toast('Nessun elemento da mescolare');return;}active.forEach((it,i)=>{const delay=Math.random()*180,dur=720+Math.random()*520;if(BY_TYPE[it.type].kind==='die')rollDie(it,delay,dur);else spinCylinder(it,delay,dur);});}
 
 function autoLayout(silent=false){const n=state.items.length;if(!n)return;const w=els.workspace.clientWidth||900,h=els.workspace.clientHeight||450,aspect=w/h;let cols=Math.ceil(Math.sqrt(n*aspect));cols=clamp(cols,1,n);const rows=Math.ceil(n/cols);state.items.forEach((it,i)=>{const c=i%cols,r=Math.floor(i/cols);it.x=(c+1)/(cols+1);it.y=(r+1)/(rows+1);});updateVisualPositions();saveLast();if(!silent)toast('Elementi disposti automaticamente');}
 
 // ---------------- Comandi ----------------
 els.homeTheme.addEventListener('click',toggleTheme);els.theme.addEventListener('click',toggleTheme);
+els.homeInfo.addEventListener('click',()=>els.infoDialog.showModal());els.info.addEventListener('click',()=>els.infoDialog.showModal());
 els.sound.addEventListener('click',()=>{state.soundOn=!state.soundOn;updateSound();if(state.soundOn)soundClick();});
 els.magnet.addEventListener('click',()=>{state.magnetOn=!state.magnetOn;updateMagnet();toast(state.magnetOn?'Magnete attivo':'Magnete disattivato');});
 els.mode.addEventListener('click',()=>{state.mode=state.mode==='composition'?'game':'composition';applyModeUI();saveLast();soundClick();});
@@ -248,7 +277,7 @@ els.newTable.addEventListener('click',newTable);
 els.lastTable.addEventListener('click',()=>{try{const o=JSON.parse(localStorage.getItem(STORAGE.last)||'null');if(o){loadState(o);showScreen('work');}}catch{}});
 els.configs.addEventListener('click',()=>{renderConfigList();els.loadDialog.showModal();});
 els.backHome.addEventListener('click',()=>{saveLast();showScreen('home');});
-els.addElements.addEventListener('click',openCatalog);els.closeCatalog.addEventListener('click',closeCatalog);els.panelShade.addEventListener('click',closeCatalog);
+els.addElements.addEventListener('pointerup',e=>{e.preventDefault();e.stopPropagation();openCatalog();});els.closeCatalog.addEventListener('click',closeCatalog);els.panelShade.addEventListener('click',closeCatalog);
 els.catalogList.addEventListener('click',e=>{const b=e.target.closest('button[data-delta]');if(!b)return;const row=b.closest('[data-type]'),type=row.dataset.type,d=Number(b.dataset.delta),current=state.catalogCounts[type]||0;const next=Math.max(0,current+d);if(d>0&&state.items.length+catalogPending()>=MAX_ITEMS){toast('Massimo 20 elementi');return;}state.catalogCounts[type]=next;renderCatalog();});
 els.catalogAdd.addEventListener('click',addPending);els.autoLayout.addEventListener('click',()=>autoLayout(false));
 els.duplicate.addEventListener('click',()=>{const it=state.items.find(x=>x.id===state.selectedId);if(!it)return;if(state.items.length>=MAX_ITEMS){toast('Massimo 20 elementi');return;}const c=deepCopy(it);c.id=uid();c.x=clamp(it.x+.045,.03,.97);c.y=clamp(it.y+.05,.05,.95);c.pinned=false;state.items.push(c);state.selectedId=c.id;rebuildAll();soundClick();});

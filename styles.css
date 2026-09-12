@@ -43,3 +43,31 @@ button,input{font:inherit}button{color:inherit}button:focus-visible,input:focus-
 @media(max-width:900px){.topbar{height:56px}.tool-btn{width:37px;height:37px;font-size:18px}.topbar-left,.topbar-right{gap:4px}.mode-title{font-size:11px}.bottombar{min-height:58px}.bar-btn{padding:8px 10px;font-size:12px}.shuffle-all{padding:10px 48px;font-size:18px}.workspace-wrap{padding:5px}.workspace{border-radius:17px}.home-main{gap:18px}.home-card{padding:12px}.home-card-icon{width:45px;height:45px}.hero-copy h2{font-size:clamp(32px,7vw,54px)}}
 @media(max-width:720px){.topbar-left .tool-btn:nth-child(2),.topbar-left .tool-btn:nth-child(3){display:none}.mode-title strong{display:none}.home-main{grid-template-columns:1fr 1fr}.hero-copy p{font-size:13px}.home-card b{font-size:14px}.home-card small{font-size:10px}.home-header p{font-size:12px}.brand-mark{width:52px;height:52px}.home-header h1{font-size:34px}}
 @media(orientation:portrait) and (max-width:900px){.rotate-overlay{display:flex}}
+
+
+/* --- ARITMETICA! v0.2.0 --- */
+.home-header-tools{display:flex;gap:8px;align-items:center}
+.info-btn,.info-tool-btn{font-family:Georgia,serif;font-weight:1000;font-style:italic}
+.info-btn{background:linear-gradient(145deg,#2f73b8,#173f73);color:#fff;border-color:rgba(255,255,255,.25)}
+.home-tool-btn{background:linear-gradient(145deg,#ffb14f,#e77821);color:#fff;border:2px solid rgba(255,255,255,.92);box-shadow:0 0 0 3px rgba(231,120,33,.18),0 6px 13px rgba(126,67,18,.28);font-size:22px}
+.home-tool-btn:hover{filter:brightness(1.06);transform:translateY(-1px)}
+.info-tool-btn{background:linear-gradient(145deg,#2d6fb2,#153e73);color:#fff;border-color:rgba(255,255,255,.25)}
+
+.answer-prompt{display:grid;place-items:center;border-radius:18px;cursor:grab;background:radial-gradient(circle at 35% 25%,rgba(255,255,255,.94),rgba(255,231,149,.82) 22%,rgba(255,166,48,.94) 54%,rgba(206,91,13,.96) 100%);border:2px solid rgba(255,255,255,.85);box-shadow:0 0 10px rgba(255,176,35,.78),0 0 24px rgba(255,137,22,.48),inset 0 2px 7px rgba(255,255,255,.9),0 7px 14px rgba(84,46,12,.22);color:#fff;min-width:62px;min-height:44px}
+.answer-prompt span{font:1000 var(--prompt-font,42px)/1 ui-rounded,"Trebuchet MS",system-ui,sans-serif;letter-spacing:-.08em;text-shadow:0 2px 2px rgba(105,46,0,.42),0 0 8px rgba(255,255,255,.55);transform:translateX(-.03em)}
+body.dark .answer-prompt{background:radial-gradient(circle at 35% 25%,#fff7d2,#ffc45f 22%,#ef7c1c 56%,#9f3a08 100%);box-shadow:0 0 13px rgba(255,189,64,.95),0 0 34px rgba(255,130,24,.58),inset 0 2px 8px rgba(255,255,255,.9),0 8px 18px rgba(0,0,0,.34)}
+.cat-preview.symbol{background:radial-gradient(circle at 35% 25%,#fff8db,#ffc15a 28%,#eb7a17 70%,#a63e0b);color:#fff;border:1px solid rgba(255,255,255,.75);box-shadow:0 0 10px rgba(244,143,25,.5);font-size:19px}
+
+.info-dialog{max-width:min(760px,94vw)}
+.info-card{max-height:min(82vh,680px);display:flex;flex-direction:column}
+.info-content{overflow:auto;padding-right:5px;margin-top:8px}
+.info-content section{padding:10px 2px;border-bottom:1px solid var(--line)}
+.info-content section:last-child{border-bottom:0}
+.info-content h3{margin:0 0 5px;color:var(--blue2);font-size:16px}
+body.dark .info-content h3{color:#7fb6ec}
+.info-content p{margin:0;color:var(--ink);font-weight:650;line-height:1.42;font-size:13px}
+.credits-box{margin-top:4px;background:var(--panel2);border:1px solid var(--line)!important;border-radius:15px;padding:12px!important}
+.credits-box small{color:var(--muted)}
+.side-panel{pointer-events:none}
+.side-panel.open{pointer-events:auto}
+@media(max-width:900px){.home-tool-btn{font-size:20px}.info-content p{font-size:12px}.info-content h3{font-size:14px}}

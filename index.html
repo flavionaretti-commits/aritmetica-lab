@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
   <meta name="theme-color" content="#e77821">
-  <meta name="description" content="Laboratorio aritmetico componibile con dadi, cilindri e linee di frazione.">
+  <meta name="description" content="Laboratorio aritmetico componibile con dadi, cilindri ed elementi grafici.">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="ARITMETICA!">
@@ -26,7 +26,10 @@
         <h1>ARITMETICA!</h1>
         <p>Laboratorio componibile di calcolo</p>
       </div>
-      <button id="homeThemeBtn" class="round-btn" aria-label="Giorno / notte">☀️</button>
+      <div class="home-header-tools">
+        <button id="homeInfoBtn" class="round-btn info-btn" aria-label="Istruzioni e crediti" title="Istruzioni e crediti">i</button>
+        <button id="homeThemeBtn" class="round-btn" aria-label="Giorno / notte">☀️</button>
+      </div>
     </header>
 
     <main class="home-main">
@@ -47,7 +50,7 @@
   <section id="workScreen" class="screen work-screen">
     <header class="topbar">
       <div class="topbar-left">
-        <button id="backHomeBtn" class="tool-btn" title="Home">⌂</button>
+        <button id="backHomeBtn" class="tool-btn home-tool-btn" title="Home" aria-label="Home">🏠</button>
         <button id="saveBtn" class="tool-btn" title="Salva configurazione">💾</button>
         <button id="loadBtn" class="tool-btn" title="Carica configurazione">📂</button>
         <button id="exportBtn" class="tool-btn" title="Esporta configurazione">⇩</button>
@@ -59,6 +62,7 @@
         <strong id="modeLabel">COMPOSIZIONE</strong>
       </div>
       <div class="topbar-right">
+        <button id="infoBtn" class="tool-btn info-tool-btn" title="Istruzioni e crediti" aria-label="Istruzioni e crediti">i</button>
         <button id="timerBtn" class="tool-btn" title="Timer">⏱</button>
         <button id="soundBtn" class="tool-btn" title="Audio">🔊</button>
         <button id="themeBtn" class="tool-btn" title="Giorno / notte">☀️</button>
@@ -132,6 +136,20 @@
     <form method="dialog" class="dialog-card">
       <div class="dialog-head"><strong>LE MIE CONFIGURAZIONI</strong><button value="cancel" class="round-btn">×</button></div>
       <div id="configList" class="config-list"></div>
+    </form>
+  </dialog>
+
+  <dialog id="infoDialog" class="app-dialog info-dialog">
+    <form method="dialog" class="dialog-card info-card">
+      <div class="dialog-head"><strong>ARITMETICA! — ISTRUZIONI</strong><button value="cancel" class="round-btn">×</button></div>
+      <div class="info-content">
+        <section><h3>1. Costruisci il tavolo</h3><p>In <b>COMPOSIZIONE 🔓</b> premi <b>＋ ELEMENTI</b> e scegli dadi, cilindri ed elementi grafici, fino a un massimo di 20. Trascina ogni elemento con dito o mouse; il magnete 🧲 aiuta ad allinearli. <b>ADATTA / DISPONI</b> crea automaticamente una disposizione ordinata.</p></section>
+        <section><h3>2. Modifica gli elementi</h3><p>Seleziona un elemento per <b>duplicarlo</b> o <b>eliminarlo</b>. La linea di frazione può essere allungata o accorciata dalle due maniglie laterali. Il simbolo luminoso <b>=?</b> è un elemento grafico fisso: può essere spostato, duplicato ed eliminato, ma non viene mescolato.</p></section>
+        <section><h3>3. Gioca</h3><p>Premi il lucchetto per entrare in <b>GIOCO 🔒</b>. Un <b>tap su un dado o cilindro</b> produce subito una nuova estrazione casuale. Sul cilindro puoi anche <b>trascinare verticalmente</b> per scegliere manualmente il valore. <b>MESCOLA TUTTO</b> randomizza insieme tutti gli elementi attivi, fermandoli in tempi leggermente diversi.</p></section>
+        <section><h3>4. Congela un risultato</h3><p>Con una <b>pressione lunga</b> su un dado o cilindro compare 📌: l'elemento resta completamente congelato e viene ignorato anche da MESCOLA TUTTO. Usa <b>SBLOCCA TUTTI</b> per liberarli in un solo colpo.</p></section>
+        <section><h3>5. Strumenti</h3><p>Puoi usare il <b>timer</b>, attivare/disattivare <b>audio</b> e <b>magnete</b>, passare tra <b>Giorno/Notte</b>, usare lo schermo intero e <b>salvare, caricare, esportare o importare</b> le configurazioni. <b>ULTIMO TAVOLO</b> ripristina automaticamente l'ultima situazione utilizzata.</p></section>
+        <section class="credits-box"><h3>Crediti</h3><p><b>ARITMETICA!</b> — ideazione e progettazione didattica: <b>prof. Flavio Naretti</b>.<br>Realizzazione PWA con il supporto di ChatGPT (OpenAI).<br><small>Versione 0.2.0</small></p></section>
+      </div>
     </form>
   </dialog>
 
