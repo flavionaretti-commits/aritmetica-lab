@@ -1,0 +1,16 @@
+{
+  "name":"ARITMETICA! – Laboratorio componibile",
+  "short_name":"ARITMETICA!",
+  "description":"Laboratorio aritmetico componibile con dadi, cilindri e linee di frazione.",
+  "start_url":"./",
+  "scope":"./",
+  "display":"standalone",
+  "orientation":"landscape",
+  "background_color":"#ead5ae",
+  "theme_color":"#e77821",
+  "icons":[
+    {"src":"icons/icon-192.png","sizes":"192x192","type":"image/png","purpose":"any"},
+    {"src":"icons/icon-512.png","sizes":"512x512","type":"image/png","purpose":"any"},
+    {"src":"icons/icon-maskable-512.png","sizes":"512x512","type":"image/png","purpose":"maskable"}
+  ]
+}

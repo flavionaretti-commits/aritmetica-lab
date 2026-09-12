@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+  <meta name="theme-color" content="#e77821">
+  <meta name="description" content="Laboratorio aritmetico componibile con dadi, cilindri e linee di frazione.">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="ARITMETICA!">
+  <title>ARITMETICA!</title>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+  <link rel="icon" href="./icons/icon-192.png" sizes="192x192">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div id="rotateOverlay" class="rotate-overlay" aria-hidden="true">
+    <div class="rotate-card"><div class="rotate-icon">↻</div><strong>Ruota il dispositivo</strong><span>ARITMETICA! è progettata per l'uso in orizzontale.</span></div>
+  </div>
+
+  <section id="homeScreen" class="screen home-screen active">
+    <header class="home-header">
+      <div class="brand-mark" aria-hidden="true"><span>½</span><b>×</b></div>
+      <div>
+        <h1>ARITMETICA!</h1>
+        <p>Laboratorio componibile di calcolo</p>
+      </div>
+      <button id="homeThemeBtn" class="round-btn" aria-label="Giorno / notte">☀️</button>
+    </header>
+
+    <main class="home-main">
+      <div class="hero-copy">
+        <span class="eyebrow">DADI · CILINDRI · FRAZIONI</span>
+        <h2>Costruisci il tavolo.<br>Bloccalo. Mescola.</h2>
+        <p>Combina fino a 20 elementi, spostali liberamente e crea ogni volta un'attività diversa.</p>
+      </div>
+      <div class="home-actions">
+        <button id="newTableBtn" class="home-card primary-card"><span class="home-card-icon">＋</span><span><b>NUOVO TAVOLO</b><small>Componi una nuova attività</small></span></button>
+        <button id="lastTableBtn" class="home-card"><span class="home-card-icon">↺</span><span><b>ULTIMO TAVOLO</b><small>Riprendi da dove eri rimasto</small></span></button>
+        <button id="configsBtn" class="home-card"><span class="home-card-icon">▣</span><span><b>LE MIE CONFIGURAZIONI</b><small>Apri un tavolo salvato</small></span></button>
+      </div>
+    </main>
+    <footer class="credits">prof. Flavio Naretti</footer>
+  </section>
+
+  <section id="workScreen" class="screen work-screen">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button id="backHomeBtn" class="tool-btn" title="Home">⌂</button>
+        <button id="saveBtn" class="tool-btn" title="Salva configurazione">💾</button>
+        <button id="loadBtn" class="tool-btn" title="Carica configurazione">📂</button>
+        <button id="exportBtn" class="tool-btn" title="Esporta configurazione">⇩</button>
+        <button id="importBtn" class="tool-btn" title="Importa configurazione">⇧</button>
+        <input id="importInput" type="file" accept="application/json,.json" hidden>
+      </div>
+      <div class="mode-title">
+        <span id="modeDot" class="mode-dot"></span>
+        <strong id="modeLabel">COMPOSIZIONE</strong>
+      </div>
+      <div class="topbar-right">
+        <button id="timerBtn" class="tool-btn" title="Timer">⏱</button>
+        <button id="soundBtn" class="tool-btn" title="Audio">🔊</button>
+        <button id="themeBtn" class="tool-btn" title="Giorno / notte">☀️</button>
+        <button id="magnetBtn" class="tool-btn active-tool" title="Magnete">🧲</button>
+        <button id="modeBtn" class="tool-btn lock-btn" title="Blocca tavolo">🔓</button>
+        <button id="fullscreenBtn" class="tool-btn" title="Schermo intero">⛶</button>
+      </div>
+    </header>
+
+    <main id="workspaceWrap" class="workspace-wrap">
+      <div id="workspace" class="workspace">
+        <canvas id="diceCanvas"></canvas>
+        <div id="domLayer" class="dom-layer"></div>
+        <div id="emptyHint" class="empty-hint">
+          <span>＋</span><strong>Aggiungi gli elementi</strong><small>Costruisci qui il tuo tavolo aritmetico.</small>
+        </div>
+        <div id="timerWidget" class="timer-widget hidden">
+          <div id="timerReadout">01:00</div>
+          <div class="timer-mini-actions">
+            <button id="timerPlayBtn">▶</button><button id="timerResetBtn">↺</button><button id="timerCloseBtn">×</button>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <footer id="bottombar" class="bottombar composition-bar">
+      <div id="compositionActions" class="bar-group">
+        <button id="addElementsBtn" class="bar-btn strong">＋ ELEMENTI</button>
+        <button id="autoLayoutBtn" class="bar-btn">▦ ADATTA / DISPONI</button>
+        <div id="selectedActions" class="selected-actions hidden">
+          <button id="duplicateBtn" class="bar-btn">⧉ DUPLICA</button>
+          <button id="deleteBtn" class="bar-btn danger">⌫ ELIMINA</button>
+        </div>
+        <span id="elementCounter" class="element-counter">0 / 20</span>
+      </div>
+      <div id="gameActions" class="bar-group hidden">
+        <button id="shuffleAllBtn" class="shuffle-all">🎲 MESCOLA TUTTO</button>
+        <button id="unpinAllBtn" class="bar-btn">📌 SBLOCCA TUTTI</button>
+      </div>
+    </footer>
+
+    <aside id="catalogPanel" class="side-panel" aria-hidden="true">
+      <div class="side-head"><div><strong>AGGIUNGI ELEMENTI</strong><small>Scegli tipo e quantità</small></div><button id="closeCatalogBtn" class="round-btn">×</button></div>
+      <div id="catalogList" class="catalog-list"></div>
+      <div class="catalog-footer"><span id="catalogCounter">0 / 20</span><button id="catalogAddBtn" class="catalog-add">AGGIUNGI AL TAVOLO</button></div>
+    </aside>
+    <div id="panelShade" class="panel-shade"></div>
+  </section>
+
+  <dialog id="timerDialog" class="app-dialog">
+    <form method="dialog" class="dialog-card">
+      <div class="dialog-head"><strong>TIMER</strong><button value="cancel" class="round-btn">×</button></div>
+      <p>Scegli una durata oppure impostala liberamente.</p>
+      <div class="preset-grid">
+        <button type="button" data-seconds="30">30 s</button><button type="button" data-seconds="60">1 min</button><button type="button" data-seconds="120">2 min</button><button type="button" data-seconds="300">5 min</button>
+      </div>
+      <div class="custom-time"><label>min <input id="customMinutes" type="number" min="0" max="99" value="1"></label><span>:</span><label>sec <input id="customSeconds" type="number" min="0" max="59" value="0"></label></div>
+      <button id="timerApplyBtn" type="button" class="dialog-primary">IMPOSTA TIMER</button>
+    </form>
+  </dialog>
+
+  <dialog id="saveDialog" class="app-dialog">
+    <form method="dialog" class="dialog-card">
+      <div class="dialog-head"><strong>SALVA CONFIGURAZIONE</strong><button value="cancel" class="round-btn">×</button></div>
+      <label class="name-label">Nome del tavolo<input id="configNameInput" maxlength="50" placeholder="Es. Frazioni semplici"></label>
+      <button id="confirmSaveBtn" type="button" class="dialog-primary">SALVA</button>
+    </form>
+  </dialog>
+
+  <dialog id="loadDialog" class="app-dialog wide-dialog">
+    <form method="dialog" class="dialog-card">
+      <div class="dialog-head"><strong>LE MIE CONFIGURAZIONI</strong><button value="cancel" class="round-btn">×</button></div>
+      <div id="configList" class="config-list"></div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast" role="status"></div>
+
+  <script type="importmap">
+  {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.186.0/build/three.module.js"}}
+  </script>
+  <script type="module" src="./app.js"></script>
+  <script>
+    if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+      window.addEventListener('load', () => navigator.serviceWorker.register('./service-worker.js', {updateViaCache:'none'}).catch(()=>{}));
+    }
+  </script>
+</body>
+</html>
