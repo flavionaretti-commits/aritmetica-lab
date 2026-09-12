@@ -1,4 +1,4 @@
-const CACHE='aritmetica-v0.3.0';
+const CACHE='aritmetica-v0.4.0';
 const SHELL=['./','./index.html','./styles.css','./app.js','./manifest.webmanifest','./icons/icon-192.png','./icons/icon-512.png','./icons/icon-maskable-512.png','./icons/apple-touch-icon.png'];
 const THREE_URL='https://cdn.jsdelivr.net/npm/three@0.186.0/build/three.module.js';
 self.addEventListener('install',event=>{

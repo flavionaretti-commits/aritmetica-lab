@@ -36,7 +36,8 @@ const els = {
   save: $('#saveBtn'), load: $('#loadBtn'), export: $('#exportBtn'), importBtn: $('#importBtn'), importInput: $('#importInput'),
   saveDialog: $('#saveDialog'), configName: $('#configNameInput'), confirmSave: $('#confirmSaveBtn'), loadDialog: $('#loadDialog'), configList: $('#configList'),
   timerBtn: $('#timerBtn'), timerDialog: $('#timerDialog'), customMinutes: $('#customMinutes'), customSeconds: $('#customSeconds'), timerApply: $('#timerApplyBtn'), timerWidget: $('#timerWidget'), timerReadout: $('#timerReadout'), timerPlay: $('#timerPlayBtn'), timerReset: $('#timerResetBtn'), timerClose: $('#timerCloseBtn'),
-  fullscreen: $('#fullscreenBtn'), toast: $('#toast')
+  fullscreen: $('#fullscreenBtn'), toast: $('#toast'),
+  zoomOut: $('#zoomOutBtn'), zoomIn: $('#zoomInBtn'), zoomReset: $('#zoomResetBtn'), zoomValue: $('#zoomValue')
 };
 
 const state = {
@@ -44,6 +45,7 @@ const state = {
   theme: localStorage.getItem(STORAGE.theme) || 'day',
   soundOn: localStorage.getItem(STORAGE.sound) !== 'off',
   magnetOn: localStorage.getItem(STORAGE.magnet) !== 'off',
+  zoom: 1,
   catalogCounts: {},
   timerInitial: 60, timerRemaining: 60, timerRunning: false, timerHandle: null, lastTimerSecond: null
 };
@@ -69,12 +71,13 @@ function toggleTheme(){ applyTheme(state.theme==='night'?'day':'night'); }
 function updateSound(){ els.sound.textContent=state.soundOn?'🔊':'🔇'; localStorage.setItem(STORAGE.sound,state.soundOn?'on':'off'); }
 function updateMagnet(){ els.magnet.classList.toggle('active-tool',state.magnetOn); els.magnet.style.opacity=state.magnetOn?'1':'.55'; localStorage.setItem(STORAGE.magnet,state.magnetOn?'on':'off'); saveLast(); }
 
-function serializeState(){ return {version:1,items:deepCopy(state.items),mode:state.mode,theme:state.theme,magnetOn:state.magnetOn}; }
+function serializeState(){ return {version:1,items:deepCopy(state.items),mode:state.mode,theme:state.theme,magnetOn:state.magnetOn,zoom:state.zoom}; }
 function saveLast(){ if(!els.work.classList.contains('active')) return; try{ localStorage.setItem(STORAGE.last,JSON.stringify(serializeState())); updateLastAvailability(); }catch{} }
 function loadState(obj){
   if(!obj || !Array.isArray(obj.items)) return false;
   state.items=obj.items.slice(0,MAX_ITEMS).map(it=>({...it,id:it.id||uid(),x:clamp(Number(it.x)||.5,.03,.97),y:clamp(Number(it.y)||.5,.05,.95),pinned:!!it.pinned}));
   state.mode=obj.mode==='game'?'game':'composition'; state.selectedId=null;
+  state.zoom=clamp(Number(obj.zoom)||1,.6,2); updateZoomUI();
   if(obj.theme) applyTheme(obj.theme); if(typeof obj.magnetOn==='boolean'){state.magnetOn=obj.magnetOn;updateMagnet();}
   rebuildAll(); return true;
 }
@@ -83,7 +86,7 @@ function getConfigs(){ try{return JSON.parse(localStorage.getItem(STORAGE.config
 function setConfigs(v){ localStorage.setItem(STORAGE.configs,JSON.stringify(v)); }
 
 function showScreen(which){ els.home.classList.toggle('active',which==='home'); els.work.classList.toggle('active',which==='work'); if(which==='work') setTimeout(()=>{resizeRenderer();saveLast();},40); }
-function newTable(){ state.items=[];state.selectedId=null;state.mode='composition';state.catalogCounts={};rebuildAll();showScreen('work');openCatalog();saveLast(); }
+function newTable(){ state.items=[];state.selectedId=null;state.mode='composition';state.zoom=1;updateZoomUI();state.catalogCounts={};rebuildAll();showScreen('work');openCatalog();saveLast(); }
 
 // ---------------- Three.js: un'unica scena per tutti i dadi ----------------
 const renderer = new THREE.WebGLRenderer({canvas:els.canvas,alpha:true,antialias:true,powerPreference:'high-performance'});
@@ -228,14 +231,15 @@ function syncDiceMeshes(){
   resizeRenderer();
 }
 function disposeObject(obj){obj.traverse(n=>{if(n.geometry)n.geometry.dispose?.();if(n.material){const arr=Array.isArray(n.material)?n.material:[n.material];arr.forEach(m=>{m.map?.dispose?.();m.dispose?.();});}})}
-function itemSize(){const n=Math.max(1,state.items.length),w=els.workspace.clientWidth||900,h=els.workspace.clientHeight||450;return clamp(Math.sqrt((w*h)/n)*.44,50,108);}
+function baseItemSize(){const n=Math.max(1,state.items.length),w=els.workspace.clientWidth||900,h=els.workspace.clientHeight||450;return clamp(Math.sqrt((w*h)/n)*.44,50,108);}
+function itemSize(){return baseItemSize()*state.zoom;}
 function resizeRenderer(){
   const w=Math.max(1,els.workspace.clientWidth),h=Math.max(1,els.workspace.clientHeight);renderer.setSize(w,h,false);camera.left=-w/2;camera.right=w/2;camera.top=h/2;camera.bottom=-h/2;camera.updateProjectionMatrix();updateVisualPositions();
 }
 function updateVisualPositions(){
   const w=els.workspace.clientWidth||1,h=els.workspace.clientHeight||1,size=itemSize();
   for(const it of state.items){const def=BY_TYPE[it.type];if(def.kind==='die'){const m=diceMeshes.get(it.id);if(!m)continue;m.position.set(it.x*w-w/2,h/2-it.y*h,0);const scale=it.type.startsWith('die6')?size:it.type==='die8mixed'?size*.67:it.type==='die12math'?size*.62:size*.60;m.scale.setScalar(scale);}
-    const el=els.domLayer.querySelector(`[data-id="${it.id}"]`);if(el){el.style.left=(it.x*100)+'%';el.style.top=(it.y*100)+'%';if(def.kind==='die'){el.style.width=size+'px';el.style.height=size+'px';}else if(def.kind==='cyl'){el.style.width=(size*.72)+'px';el.style.height=(size*1.05)+'px';el.style.setProperty('--cyl-font',Math.max(26,size*.46)+'px');}else if(def.kind==='line'){el.style.width=(it.width||Math.max(110,size*1.7))+'px';}else if(def.kind==='symbol'){el.style.width=(size*1.14)+'px';el.style.height=(size*.76)+'px';el.style.setProperty('--prompt-font',Math.max(28,size*.48)+'px');}}}
+    const el=els.domLayer.querySelector(`[data-id="${it.id}"]`);if(el){el.style.left=(it.x*100)+'%';el.style.top=(it.y*100)+'%';if(def.kind==='die'){el.style.width=size+'px';el.style.height=size+'px';}else if(def.kind==='cyl'){el.style.width=(size*.72)+'px';el.style.height=(size*1.05)+'px';el.style.setProperty('--cyl-font',Math.max(26,size*.46)+'px');}else if(def.kind==='line'){el.style.width=(it.width?it.width*state.zoom:Math.max(110*state.zoom,size*1.7))+'px';}else if(def.kind==='symbol'){el.style.width=(size*1.14)+'px';el.style.height=(size*.76)+'px';el.style.setProperty('--prompt-font',Math.max(28,size*.48)+'px');}}}
 }
 function animationLoop(now){
   const dt=now-lastFrame;lastFrame=now;
@@ -293,7 +297,8 @@ els.domLayer.addEventListener('pointerdown',e=>{
   if(state.mode==='composition'){
     selectItem(item.id);
     const handle=e.target.closest('[data-resize]');
-    interaction={kind:handle?'resize':'move',item,el,startX:e.clientX,startY:e.clientY,startItemX:item.x,startItemY:item.y,startWidth:item.width||150,side:handle?.dataset.resize,moved:false};
+    const renderedWidth=parseFloat(el.style.width)||el.getBoundingClientRect().width||150;
+    interaction={kind:handle?'resize':'move',item,el,startX:e.clientX,startY:e.clientY,startItemX:item.x,startItemY:item.y,startWidth:item.width||(renderedWidth/state.zoom),side:handle?.dataset.resize,moved:false};
   } else {
     if(!['die','cyl'].includes(BY_TYPE[item.type].kind))return;
     interaction={kind:'game',item,el,startX:e.clientX,startY:e.clientY,lastStepY:e.clientY,moved:false,long:false};
@@ -306,7 +311,7 @@ window.addEventListener('pointermove',e=>{
   if(interaction.kind==='move'){
     const p=pointFraction(e);let s=snapPosition(it,p.x,p.y);it.x=s.x;it.y=s.y;interaction.moved=true;interaction.el.style.left=(it.x*100)+'%';interaction.el.style.top=(it.y*100)+'%';const m=diceMeshes.get(it.id);if(m){m.position.x=it.x*p.w-p.w/2;m.position.y=p.h/2-it.y*p.h;}
   } else if(interaction.kind==='resize'){
-    const dx=e.clientX-interaction.startX;const sign=interaction.side==='left'?-1:1;it.width=clamp(interaction.startWidth+sign*dx,65,Math.max(100,els.workspace.clientWidth*.75));interaction.el.style.width=it.width+'px';interaction.moved=true;
+    const dx=(e.clientX-interaction.startX)/state.zoom;const sign=interaction.side==='left'?-1:1;it.width=clamp(interaction.startWidth+sign*dx,65,Math.max(100,els.workspace.clientWidth*.75));interaction.el.style.width=(it.width*state.zoom)+'px';interaction.moved=true;
   } else if(interaction.kind==='game' && BY_TYPE[it.type].kind==='cyl'){
     const dy=e.clientY-interaction.startY;if(Math.abs(dy)>9){interaction.moved=true;clearTimeout(interaction.longTimer);}if(!it.pinned&&Math.abs(e.clientY-interaction.lastStepY)>=18){const dir=e.clientY<interaction.lastStepY?1:-1;stepCylinder(it,dir);interaction.lastStepY=e.clientY;}
   } else if(interaction.kind==='game' && Math.hypot(e.clientX-interaction.startX,e.clientY-interaction.startY)>9){interaction.moved=true;clearTimeout(interaction.longTimer);}
@@ -328,6 +333,21 @@ function shuffleAll(){const active=state.items.filter(i=>!i.pinned&&['die','cyl'
 
 function autoLayout(silent=false){const n=state.items.length;if(!n)return;const w=els.workspace.clientWidth||900,h=els.workspace.clientHeight||450,aspect=w/h;let cols=Math.ceil(Math.sqrt(n*aspect));cols=clamp(cols,1,n);const rows=Math.ceil(n/cols);state.items.forEach((it,i)=>{const c=i%cols,r=Math.floor(i/cols);it.x=(c+1)/(cols+1);it.y=(r+1)/(rows+1);});updateVisualPositions();saveLast();if(!silent)toast('Elementi disposti automaticamente');}
 
+
+function updateZoomUI(){
+  const pct=Math.round(state.zoom*100);
+  if(els.zoomValue) els.zoomValue.textContent=`${pct}%`;
+  if(els.zoomOut) els.zoomOut.disabled=state.zoom<=.6001;
+  if(els.zoomIn) els.zoomIn.disabled=state.zoom>=1.9999;
+}
+function setZoom(value,announce=true){
+  state.zoom=clamp(Math.round(value*10)/10,.6,2);
+  updateZoomUI();
+  updateVisualPositions();
+  saveLast();
+  if(announce) toast(`Dimensione elementi: ${Math.round(state.zoom*100)}%`);
+}
+
 // ---------------- Comandi ----------------
 els.homeTheme.addEventListener('click',toggleTheme);els.theme.addEventListener('click',toggleTheme);
 els.homeInfo.addEventListener('click',()=>els.infoDialog.showModal());els.info.addEventListener('click',()=>els.infoDialog.showModal());
@@ -345,6 +365,9 @@ els.duplicate.addEventListener('click',()=>{const it=state.items.find(x=>x.id===
 els.delete.addEventListener('click',()=>{const id=state.selectedId;if(!id)return;state.items=state.items.filter(x=>x.id!==id);state.selectedId=null;rebuildAll();soundClick();});
 els.shuffleAll.addEventListener('click',shuffleAll);els.unpinAll.addEventListener('click',()=>{let n=0;state.items.forEach(i=>{if(i.pinned){i.pinned=false;n++;}});renderItems();saveLast();toast(n?`${n} elementi sbloccati`:'Nessun elemento congelato');});
 els.fullscreen.addEventListener('click',async()=>{try{if(!document.fullscreenElement)await document.documentElement.requestFullscreen();else await document.exitFullscreen();}catch{}});
+els.zoomOut.addEventListener('click',()=>{soundClick();setZoom(state.zoom-.1);});
+els.zoomIn.addEventListener('click',()=>{soundClick();setZoom(state.zoom+.1);});
+els.zoomReset.addEventListener('click',()=>{soundClick();setZoom(1);});
 
 // ---------------- Salvataggi / import export ----------------
 els.save.addEventListener('click',()=>{els.configName.value='';els.saveDialog.showModal();setTimeout(()=>els.configName.focus(),100);});
@@ -373,4 +396,4 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden)saveLast();
 window.addEventListener('beforeunload',saveLast);
 
 // Init
-applyTheme(state.theme);updateSound();updateMagnet();renderCatalog();applyModeUI();renderItems();resizeRenderer();updateLastAvailability();showScreen('home');
+applyTheme(state.theme);updateSound();updateMagnet();updateZoomUI();renderCatalog();applyModeUI();renderItems();resizeRenderer();updateLastAvailability();showScreen('home');

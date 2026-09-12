@@ -71,3 +71,13 @@ body.dark .info-content h3{color:#7fb6ec}
 .side-panel{pointer-events:none}
 .side-panel.open{pointer-events:auto}
 @media(max-width:900px){.home-tool-btn{font-size:20px}.info-content p{font-size:12px}.info-content h3{font-size:14px}}
+
+
+/* --- ARITMETICA! v0.4.0 — zoom globale elementi --- */
+.zoom-widget{position:absolute;z-index:22;left:14px;bottom:14px;display:flex;align-items:center;gap:4px;padding:5px;border-radius:15px;background:rgba(15,39,67,.88);border:1px solid rgba(255,255,255,.16);box-shadow:0 7px 17px rgba(0,0,0,.22);backdrop-filter:blur(8px)}
+.zoom-widget button{border:0;height:34px;min-width:40px;padding:0 8px;border-radius:10px;background:rgba(255,255,255,.12);color:#fff;font-weight:1000;cursor:pointer;box-shadow:none}
+.zoom-widget button:active{transform:translateY(1px)}
+.zoom-widget button:disabled{opacity:.35;cursor:default}
+.zoom-widget .zoom-value{min-width:58px;background:rgba(255,255,255,.2);font:900 12px/1 ui-monospace,monospace;letter-spacing:.02em}
+body.dark .zoom-widget{background:rgba(4,14,27,.9)}
+@media(max-width:900px){.zoom-widget{left:8px;bottom:8px;padding:4px}.zoom-widget button{height:30px;min-width:36px;padding:0 6px;font-size:12px}.zoom-widget .zoom-value{min-width:50px;font-size:11px}}

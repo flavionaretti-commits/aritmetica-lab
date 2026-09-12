@@ -85,6 +85,11 @@
             <button id="timerPlayBtn">▶</button><button id="timerResetBtn">↺</button><button id="timerCloseBtn">×</button>
           </div>
         </div>
+        <div class="zoom-widget" aria-label="Ingrandimento elementi">
+          <button id="zoomOutBtn" type="button" title="Rimpicciolisci elementi" aria-label="Rimpicciolisci elementi">🔍−</button>
+          <button id="zoomResetBtn" type="button" class="zoom-value" title="Torna al 100%" aria-label="Torna al 100%"><span id="zoomValue">100%</span></button>
+          <button id="zoomInBtn" type="button" title="Ingrandisci elementi" aria-label="Ingrandisci elementi">🔍+</button>
+        </div>
       </div>
     </main>
 
@@ -147,8 +152,8 @@
         <section><h3>2. Modifica gli elementi</h3><p>Seleziona un elemento per <b>duplicarlo</b> o <b>eliminarlo</b>. La linea di frazione può essere allungata o accorciata dalle due maniglie laterali. Il simbolo luminoso <b>=?</b> è un elemento grafico fisso: può essere spostato, duplicato ed eliminato, ma non viene mescolato.</p></section>
         <section><h3>3. Gioca</h3><p>Premi il lucchetto per entrare in <b>GIOCO 🔒</b>. Un <b>tap su un dado o cilindro</b> produce subito una nuova estrazione casuale. Sul cilindro puoi anche <b>trascinare verticalmente</b> per scegliere manualmente il valore. <b>MESCOLA TUTTO</b> randomizza insieme tutti gli elementi attivi, fermandoli in tempi leggermente diversi. I dadi terminano sempre con la faccia estratta diritta; nel <b>D20 delle frazioni</b> la faccia uscita resta luminosa mentre le altre vengono attenuate. Il <b>D12 Matematico</b> comprende anche il jolly ★.</p></section>
         <section><h3>4. Congela un risultato</h3><p>Con una <b>pressione lunga</b> su un dado o cilindro compare 📌: l'elemento resta completamente congelato e viene ignorato anche da MESCOLA TUTTO. Usa <b>SBLOCCA TUTTI</b> per liberarli in un solo colpo.</p></section>
-        <section><h3>5. Strumenti</h3><p>Puoi usare il <b>timer</b>, attivare/disattivare <b>audio</b> e <b>magnete</b>, passare tra <b>Giorno/Notte</b>, usare lo schermo intero e <b>salvare, caricare, esportare o importare</b> le configurazioni. <b>ULTIMO TAVOLO</b> ripristina automaticamente l'ultima situazione utilizzata.</p></section>
-        <section class="credits-box"><h3>Crediti</h3><p><b>ARITMETICA!</b> — ideazione e progettazione didattica: <b>prof. Flavio Naretti</b>.<br>Realizzazione PWA con il supporto di ChatGPT (OpenAI).<br><small>Versione 0.3.0</small></p></section>
+        <section><h3>5. Strumenti</h3><p>Puoi usare il <b>timer</b>, attivare/disattivare <b>audio</b> e <b>magnete</b>, passare tra <b>Giorno/Notte</b>, usare lo schermo intero e <b>salvare, caricare, esportare o importare</b> le configurazioni. Con <b>🔍− / 🔍+</b> puoi rimpicciolire o ingrandire insieme gli elementi del tavolo dal 60% al 200%; tocca la percentuale per tornare subito al <b>100%</b>. Il livello di ingrandimento viene salvato insieme alla configurazione. <b>ULTIMO TAVOLO</b> ripristina automaticamente l'ultima situazione utilizzata.</p></section>
+        <section class="credits-box"><h3>Crediti</h3><p><b>ARITMETICA!</b> — ideazione e progettazione didattica: <b>prof. Flavio Naretti</b>.<br>Realizzazione PWA con il supporto di ChatGPT (OpenAI).<br><small>Versione 0.4.0</small></p></section>
       </div>
     </form>
   </dialog>
