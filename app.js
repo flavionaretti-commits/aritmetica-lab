@@ -14,10 +14,12 @@ const CATALOG = [
   {section:'DADI', type:'die6ops', name:'D6 Operazioni', hint:'+ − × : ^ √', preview:'×', kind:'die', values:['+','−','×',':','^','√'], color:'#e77821'},
   {section:'DADI', type:'die6compare', name:'D6 Confronti', hint:'+ − × : > <', preview:'>', kind:'die', values:['+','−','×',':','>','<'], color:'#23805a'},
   {section:'DADI', type:'die8mixed', name:'D8 Misto', hint:'+ − × : ^ √ > <', preview:'√', kind:'die', values:['+','−','×',':','^','√','>','<'], color:'#704ba8'},
+  {section:'DADI', type:'die12math', name:'D12 Matematico', hint:'+ − × : ^ √ = > < ≈ ≠ ★ (Jolly)', preview:'★', kind:'die', values:['+','−','×',':','^','√','=','>','<','≈','≠','★'], color:'#b34f73'},
   {section:'CILINDRI', type:'cylDigits', name:'Cifre', hint:'0 → 9', preview:'7', kind:'cyl', values:['0','1','2','3','4','5','6','7','8','9']},
   {section:'CILINDRI', type:'cylOps', name:'Operazioni', hint:'+ − × :', preview:'×', kind:'cyl', values:['+','−','×',':']},
   {section:'CILINDRI', type:'cylCompare3', name:'Confronto', hint:'= > <', preview:'=', kind:'cyl', values:['=','>','<']},
   {section:'CILINDRI', type:'cylRelations5', name:'Relazioni', hint:'= ≈ ≠ > <', preview:'≈', kind:'cyl', values:['=','≈','≠','>','<']},
+  {section:'CILINDRI', type:'cylRelations7', name:'Relazioni complete', hint:'= ≠ ≈ > ≥ < ≤', preview:'≥', kind:'cyl', values:['=','≠','≈','>','≥','<','≤']},
   {section:'ELEMENTI GRAFICI', type:'fractionLine', name:'Linea di frazione', hint:'lunghezza regolabile', preview:'━', kind:'line', values:[]},
   {section:'ELEMENTI GRAFICI', type:'answerPrompt', name:'Risultato da trovare', hint:'simbolo luminoso =?', preview:'=?', kind:'symbol', values:[]}
 ];
@@ -106,7 +108,45 @@ function labelTexture(label,color,isFraction=false){
   const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=renderer.capabilities.getMaxAnisotropy();return t;
 }
 function lighten(hex,p){const n=parseInt(hex.slice(1),16),r=n>>16,g=(n>>8)&255,b=n&255;const q=p/100;return `rgb(${Math.round(r+(255-r)*q)},${Math.round(g+(255-g)*q)},${Math.round(b+(255-b)*q)})`;}
-function makeMaterials(def){ return def.values.map(v=>new THREE.MeshStandardMaterial({map:labelTexture(v,def.color||'#2865a8',def.type==='die20fraction'),roughness:.42,metalness:.08})); }
+function makeMaterials(def){
+  if(def.type==='die12math') return def.values.map(()=>new THREE.MeshStandardMaterial({color:def.color||'#b34f73',roughness:.46,metalness:.08}));
+  return def.values.map(v=>new THREE.MeshStandardMaterial({map:labelTexture(v,def.color||'#2865a8',def.type==='die20fraction'),roughness:.42,metalness:.08}));
+}
+function symbolTexture(label){
+  const c=document.createElement('canvas');c.width=c.height=256;const x=c.getContext('2d');x.clearRect(0,0,256,256);
+  x.textAlign='center';x.textBaseline='middle';x.font=label==='★'?'900 120px system-ui,sans-serif':'900 112px system-ui,sans-serif';
+  x.lineWidth=10;x.strokeStyle='rgba(0,0,0,.34)';x.fillStyle='#fff';x.strokeText(label,128,134);x.fillText(label,128,134);
+  const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=renderer.capabilities.getMaxAnisotropy();return t;
+}
+function faceBasisFromNormal(normal){
+  const n=normal.clone().normalize();
+  let up=new THREE.Vector3(0,1,0);up.addScaledVector(n,-up.dot(n));
+  if(up.lengthSq()<.05){up.set(1,0,0);up.addScaledVector(n,-up.dot(n));}
+  up.normalize();const right=new THREE.Vector3().crossVectors(up,n).normalize();up=new THREE.Vector3().crossVectors(n,right).normalize();
+  return {right,up,normal:n};
+}
+function quaternionToFrontFromBasis(basis){const m=new THREE.Matrix4().makeBasis(basis.right,basis.up,basis.normal);return new THREE.Quaternion().setFromRotationMatrix(m).invert();}
+function dodecaFaces(geom){
+  const pos=geom.attributes.position, tris=[];
+  for(let i=0;i<pos.count;i+=3){
+    const a=new THREE.Vector3().fromBufferAttribute(pos,i),b=new THREE.Vector3().fromBufferAttribute(pos,i+1),c=new THREE.Vector3().fromBufferAttribute(pos,i+2);
+    const normal=new THREE.Vector3().crossVectors(new THREE.Vector3().subVectors(b,a),new THREE.Vector3().subVectors(c,a)).normalize();
+    const center=a.clone().add(b).add(c).multiplyScalar(1/3);tris.push({start:i,normal,center});
+  }
+  const faces=[];
+  for(const tri of tris){let f=faces.find(q=>q.normal.dot(tri.normal)>.9999);if(!f){f={normal:tri.normal.clone(),tris:[],center:new THREE.Vector3(),vertices:[]};faces.push(f);}f.tris.push(tri);
+    for(let k=0;k<3;k++){const v=new THREE.Vector3().fromBufferAttribute(pos,tri.start+k);if(!f.vertices.some(q=>q.distanceToSquared(v)<1e-10))f.vertices.push(v);}
+  }
+  faces.forEach(f=>{f.center.set(0,0,0);f.vertices.forEach(v=>f.center.add(v));f.center.multiplyScalar(1/f.vertices.length);});return faces;
+}
+function setDieFaceHighlight(obj,faceIndex){
+  if(obj.userData.type!=='die20fraction') return;
+  const mats=obj.userData.faceMaterials||[];
+  mats.forEach((m,i)=>{m.color.setHex(i===faceIndex?0xffffff:0x777777);m.roughness=i===faceIndex?.38:.66;m.emissive?.setHex(i===faceIndex?0x102033:0x000000);m.emissiveIntensity=i===faceIndex?.16:0;});
+}
+function resetDieFaceHighlight(obj){
+  if(obj.userData.type!=='die20fraction') return;(obj.userData.faceMaterials||[]).forEach(m=>{m.color.setHex(0xffffff);m.roughness=.42;m.emissive?.setHex(0x000000);m.emissiveIntensity=0;});
+}
 function faceQuaternionFromGroup(geometry,groupIndex){
   const group=geometry.groups[groupIndex];
   if(!group) return new THREE.Quaternion();
@@ -145,20 +185,41 @@ function remapTriangleUVs(geom,faces){
   for(let i=0;i<faces;i++){uv.setXY(i*3,0.08,0.08);uv.setXY(i*3+1,0.92,0.08);uv.setXY(i*3+2,0.5,0.94);} uv.needsUpdate=true;
 }
 function createDieMesh(item){
-  const def=BY_TYPE[item.type]; let geom;
+  const def=BY_TYPE[item.type]; let geom, root, faceQuaternions=[];
   if(item.type.startsWith('die6')) geom=new THREE.BoxGeometry(1,1,1,1,1,1);
   else if(item.type==='die8mixed'){ geom=new THREE.OctahedronGeometry(1,0); if(geom.index) geom=geom.toNonIndexed(); remapTriangleUVs(geom,8); geom.clearGroups(); for(let i=0;i<8;i++) geom.addGroup(i*3,3,i); }
+  else if(item.type==='die12math'){
+    geom=new THREE.DodecahedronGeometry(1,0);if(geom.index)geom=geom.toNonIndexed();
+    const faces=dodecaFaces(geom);geom.clearGroups();faces.forEach((f,fi)=>f.tris.forEach(t=>geom.addGroup(t.start,3,fi)));
+    const mats=makeMaterials(def), solid=new THREE.Mesh(geom,mats);root=new THREE.Group();root.add(solid);
+    faceQuaternions=faces.map(f=>quaternionToFrontFromBasis(faceBasisFromNormal(f.normal)));
+    faces.forEach((f,i)=>{
+      const basis=faceBasisFromNormal(f.normal), tex=symbolTexture(def.values[i]);
+      const mat=new THREE.MeshBasicMaterial({map:tex,transparent:true,depthWrite:false,side:THREE.DoubleSide});
+      const plane=new THREE.Mesh(new THREE.PlaneGeometry(.72,.72),mat);
+      plane.position.copy(f.center.clone().add(f.normal.clone().multiplyScalar(.018)));
+      plane.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(basis.right,basis.up,basis.normal));root.add(plane);
+    });
+    const edges=new THREE.LineSegments(new THREE.EdgesGeometry(geom,15),new THREE.LineBasicMaterial({color:0xffffff,transparent:true,opacity:.42}));root.add(edges);
+    root.userData.faceMaterials=mats;
+  }
   else { geom=new THREE.IcosahedronGeometry(1,0); if(geom.index) geom=geom.toNonIndexed(); remapTriangleUVs(geom,20); geom.clearGroups(); for(let i=0;i<20;i++) geom.addGroup(i*3,3,i); }
-  const mats=makeMaterials(def); const mesh=new THREE.Mesh(geom,mats);mesh.userData.id=item.id;mesh.userData.faceQuaternions=def.values.map((_,i)=>faceQuaternionFromGroup(geom,i));
-  const edges=new THREE.LineSegments(new THREE.EdgesGeometry(geom,15),new THREE.LineBasicMaterial({color:0xffffff,transparent:true,opacity:.42}));mesh.add(edges);scene.add(mesh);diceMeshes.set(item.id,mesh);
-  const idx=Number.isInteger(item.value)?item.value:0; orientDie(mesh,idx,false); return mesh;
+  if(!root){
+    const mats=makeMaterials(def),mesh=new THREE.Mesh(geom,mats);root=mesh;root.userData.faceMaterials=mats;
+    faceQuaternions=def.values.map((_,i)=>faceQuaternionFromGroup(geom,i));
+    const edges=new THREE.LineSegments(new THREE.EdgesGeometry(geom,15),new THREE.LineBasicMaterial({color:0xffffff,transparent:true,opacity:.42}));root.add(edges);
+  }
+  root.userData.id=item.id;root.userData.type=item.type;root.userData.faceQuaternions=faceQuaternions;
+  scene.add(root);diceMeshes.set(item.id,root);
+  const idx=Number.isInteger(item.value)?item.value:0;orientDie(root,idx,false);return root;
 }
 function orientDie(mesh,faceIndex,animate=true,duration=900,delay=0){
   // La faccia estratta termina sempre frontale e con il testo parallelo alla base dello schermo.
   // La casualità resta nella rotazione durante il lancio, non nell'orientamento finale.
   const target=(mesh.userData.faceQuaternions?.[faceIndex]||new THREE.Quaternion()).clone();
-  if(!animate){mesh.quaternion.copy(target);return;}
-  diceAnimations.set(mesh.userData.id,{start:performance.now()+delay,duration,startQ:mesh.quaternion.clone(),targetQ:target,axis:new THREE.Vector3(Math.random()+.2,Math.random()+.2,Math.random()+.2).normalize()});
+  if(!animate){mesh.quaternion.copy(target);setDieFaceHighlight(mesh,faceIndex);return;}
+  resetDieFaceHighlight(mesh);
+  diceAnimations.set(mesh.userData.id,{start:performance.now()+delay,duration,startQ:mesh.quaternion.clone(),targetQ:target,faceIndex,axis:new THREE.Vector3(Math.random()+.2,Math.random()+.2,Math.random()+.2).normalize()});
 }
 function syncDiceMeshes(){
   const wanted=new Set(state.items.filter(i=>BY_TYPE[i.type]?.kind==='die').map(i=>i.id));
@@ -173,12 +234,12 @@ function resizeRenderer(){
 }
 function updateVisualPositions(){
   const w=els.workspace.clientWidth||1,h=els.workspace.clientHeight||1,size=itemSize();
-  for(const it of state.items){const def=BY_TYPE[it.type];if(def.kind==='die'){const m=diceMeshes.get(it.id);if(!m)continue;m.position.set(it.x*w-w/2,h/2-it.y*h,0);const scale=it.type.startsWith('die6')?size:it.type==='die8mixed'?size*.67:size*.60;m.scale.setScalar(scale);}
+  for(const it of state.items){const def=BY_TYPE[it.type];if(def.kind==='die'){const m=diceMeshes.get(it.id);if(!m)continue;m.position.set(it.x*w-w/2,h/2-it.y*h,0);const scale=it.type.startsWith('die6')?size:it.type==='die8mixed'?size*.67:it.type==='die12math'?size*.62:size*.60;m.scale.setScalar(scale);}
     const el=els.domLayer.querySelector(`[data-id="${it.id}"]`);if(el){el.style.left=(it.x*100)+'%';el.style.top=(it.y*100)+'%';if(def.kind==='die'){el.style.width=size+'px';el.style.height=size+'px';}else if(def.kind==='cyl'){el.style.width=(size*.72)+'px';el.style.height=(size*1.05)+'px';el.style.setProperty('--cyl-font',Math.max(26,size*.46)+'px');}else if(def.kind==='line'){el.style.width=(it.width||Math.max(110,size*1.7))+'px';}else if(def.kind==='symbol'){el.style.width=(size*1.14)+'px';el.style.height=(size*.76)+'px';el.style.setProperty('--prompt-font',Math.max(28,size*.48)+'px');}}}
 }
 function animationLoop(now){
   const dt=now-lastFrame;lastFrame=now;
-  for(const [id,a] of [...diceAnimations]){const m=diceMeshes.get(id);if(!m){diceAnimations.delete(id);continue;}if(now<a.start)continue;const raw=clamp((now-a.start)/a.duration,0,1);const t=1-Math.pow(1-raw,3);const q=a.startQ.clone().slerp(a.targetQ,t);const spin=new THREE.Quaternion().setFromAxisAngle(a.axis,Math.PI*10*raw*(1-raw));m.quaternion.copy(spin.multiply(q));if(raw>=1){m.quaternion.copy(a.targetQ);diceAnimations.delete(id);}}
+  for(const [id,a] of [...diceAnimations]){const m=diceMeshes.get(id);if(!m){diceAnimations.delete(id);continue;}if(now<a.start)continue;const raw=clamp((now-a.start)/a.duration,0,1);const t=1-Math.pow(1-raw,3);const q=a.startQ.clone().slerp(a.targetQ,t);const spin=new THREE.Quaternion().setFromAxisAngle(a.axis,Math.PI*10*raw*(1-raw));m.quaternion.copy(spin.multiply(q));if(raw>=1){m.quaternion.copy(a.targetQ);setDieFaceHighlight(m,a.faceIndex);diceAnimations.delete(id);}}
   renderer.render(scene,camera);requestAnimationFrame(animationLoop);
 }
 requestAnimationFrame(animationLoop);
