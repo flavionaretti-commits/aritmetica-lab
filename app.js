@@ -16,6 +16,8 @@ const CATALOG = [
   {section:'DADI', type:'die8mixed', name:'D8 Misto', hint:'+ − × : ^ √ > <', preview:'√', kind:'die', values:['+','−','×',':','^','√','>','<'], color:'#704ba8'},
   {section:'DADI', type:'die12math', name:'D12 Matematico', hint:'+ − × : ^ √ = > < ≈ ≠ ★ (Jolly)', preview:'★', kind:'die', values:['+','−','×',':','^','√','=','>','<','≈','≠','★'], color:'#b34f73'},
   {section:'CILINDRI', type:'cylDigits', name:'Cifre', hint:'0 → 9', preview:'7', kind:'cyl', values:['0','1','2','3','4','5','6','7','8','9']},
+  {section:'CILINDRI', type:'cylDigits1to9', name:'Cifre 1–9', hint:'1 → 9 (senza zero)', preview:'5', kind:'cyl', values:['1','2','3','4','5','6','7','8','9']},
+  {section:'CILINDRI', type:'cylNumbers1to10', name:'Numeri 1–10', hint:'1 → 10 (senza zero)', preview:'10', kind:'cyl', values:['1','2','3','4','5','6','7','8','9','10']},
   {section:'CILINDRI', type:'cylOps', name:'Operazioni', hint:'+ − × :', preview:'×', kind:'cyl', values:['+','−','×',':']},
   {section:'CILINDRI', type:'cylCompare3', name:'Confronto', hint:'= > <', preview:'=', kind:'cyl', values:['=','>','<']},
   {section:'CILINDRI', type:'cylRelations5', name:'Relazioni', hint:'= ≈ ≠ > <', preview:'≈', kind:'cyl', values:['=','≈','≠','>','<']},
