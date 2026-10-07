@@ -1,4 +1,4 @@
-# ARITMETICA! — PWA v0.5.0
+# ARITMETICA! — PWA v0.6.0
 
 Laboratorio aritmetico componibile in sviluppo incrementale.
 
@@ -45,7 +45,7 @@ La scena usa Three.js tramite modulo CDN. Il service worker tenta di memorizzare
 5. Apri il sito almeno una volta online; poi puoi installarlo come PWA.
 
 ## Cache
-La cache corrente è `aritmetica-v0.5.0`. A ogni aggiornamento importante conviene incrementare la versione nel `service-worker.js`.
+La cache corrente è `aritmetica-v0.6.0`. A ogni aggiornamento importante conviene incrementare la versione nel `service-worker.js`.
 
 ## Stato del progetto
 È una prima build funzionale pensata per essere affinata per step. In particolare grafica, fisica/animazione dei dadi, audio e dettagli responsive potranno essere regolati dopo la prova reale su laptop/iPad/iPhone.
@@ -68,3 +68,10 @@ NOVITÀ v0.3.0
 ## v0.5.0
 - Aggiunti i cilindri **Cifre 1–9** e **Numeri 1–10**, entrambi senza zero.
 - Mantengono tap casuale, trascinamento verticale manuale, congelamento e MESCOLA TUTTO.
+
+
+## v0.6.0
+- Aggiunto **Mazzo francese da 40 carte**: A, 2–7, J, Q, K nei semi ♠ ♥ ♦ ♣.
+- Estrazione senza reinserimento e contatore delle carte residue.
+- Supporto a più mazzi indipendenti sullo stesso tavolo.
+- Nuovo comando **RIMESCOLA MAZZI**.
