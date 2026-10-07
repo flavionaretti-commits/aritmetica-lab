@@ -22,10 +22,25 @@ const CATALOG = [
   {section:'CILINDRI', type:'cylCompare3', name:'Confronto', hint:'= > <', preview:'=', kind:'cyl', values:['=','>','<']},
   {section:'CILINDRI', type:'cylRelations5', name:'Relazioni', hint:'= ≈ ≠ > <', preview:'≈', kind:'cyl', values:['=','≈','≠','>','<']},
   {section:'CILINDRI', type:'cylRelations7', name:'Relazioni complete', hint:'= ≠ ≈ > ≥ < ≤', preview:'≥', kind:'cyl', values:['=','≠','≈','>','≥','<','≤']},
+  {section:'CARTE', type:'frenchDeck40', name:'Mazzo francese 40 carte', hint:'A–7 + J Q K · ♠ ♥ ♦ ♣', preview:'A♠', kind:'card', values:[]},
   {section:'ELEMENTI GRAFICI', type:'fractionLine', name:'Linea di frazione', hint:'lunghezza regolabile', preview:'━', kind:'line', values:[]},
   {section:'ELEMENTI GRAFICI', type:'answerPrompt', name:'Risultato da trovare', hint:'simbolo luminoso =?', preview:'=?', kind:'symbol', values:[]}
 ];
 const BY_TYPE = Object.fromEntries(CATALOG.map(x=>[x.type,x]));
+
+const FRENCH40_RANKS = ['A','2','3','4','5','6','7','J','Q','K'];
+const FRENCH40_SUITS = ['♠','♥','♦','♣'];
+const FRENCH40 = FRENCH40_SUITS.flatMap(suit=>FRENCH40_RANKS.map(rank=>rank+suit));
+function shuffledDeck40(){
+  const a=[...FRENCH40];
+  for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}
+  return a;
+}
+function cardParts(code){
+  if(!code) return {rank:'',suit:'',red:false};
+  const suit=code.slice(-1),rank=code.slice(0,-1);
+  return {rank,suit,red:suit==='♥'||suit==='♦'};
+}
 
 const $ = s => document.querySelector(s);
 const els = {
@@ -33,7 +48,7 @@ const els = {
   homeTheme: $('#homeThemeBtn'), homeInfo: $('#homeInfoBtn'), info: $('#infoBtn'), infoDialog: $('#infoDialog'), theme: $('#themeBtn'), sound: $('#soundBtn'), magnet: $('#magnetBtn'), mode: $('#modeBtn'), modeLabel: $('#modeLabel'),
   newTable: $('#newTableBtn'), lastTable: $('#lastTableBtn'), configs: $('#configsBtn'), backHome: $('#backHomeBtn'),
   addElements: $('#addElementsBtn'), autoLayout: $('#autoLayoutBtn'), selectedActions: $('#selectedActions'), duplicate: $('#duplicateBtn'), delete: $('#deleteBtn'),
-  elementCounter: $('#elementCounter'), compositionActions: $('#compositionActions'), gameActions: $('#gameActions'), shuffleAll: $('#shuffleAllBtn'), unpinAll: $('#unpinAllBtn'),
+  elementCounter: $('#elementCounter'), compositionActions: $('#compositionActions'), gameActions: $('#gameActions'), shuffleAll: $('#shuffleAllBtn'), unpinAll: $('#unpinAllBtn'), resetDecks: $('#resetDecksBtn'),
   catalogPanel: $('#catalogPanel'), panelShade: $('#panelShade'), closeCatalog: $('#closeCatalogBtn'), catalogList: $('#catalogList'), catalogCounter: $('#catalogCounter'), catalogAdd: $('#catalogAddBtn'),
   save: $('#saveBtn'), load: $('#loadBtn'), export: $('#exportBtn'), importBtn: $('#importBtn'), importInput: $('#importInput'),
   saveDialog: $('#saveDialog'), configName: $('#configNameInput'), confirmSave: $('#confirmSaveBtn'), loadDialog: $('#loadDialog'), configList: $('#configList'),
@@ -77,7 +92,14 @@ function serializeState(){ return {version:1,items:deepCopy(state.items),mode:st
 function saveLast(){ if(!els.work.classList.contains('active')) return; try{ localStorage.setItem(STORAGE.last,JSON.stringify(serializeState())); updateLastAvailability(); }catch{} }
 function loadState(obj){
   if(!obj || !Array.isArray(obj.items)) return false;
-  state.items=obj.items.slice(0,MAX_ITEMS).map(it=>({...it,id:it.id||uid(),x:clamp(Number(it.x)||.5,.03,.97),y:clamp(Number(it.y)||.5,.05,.95),pinned:!!it.pinned}));
+  state.items=obj.items.slice(0,MAX_ITEMS).map(it=>{
+    const clean={...it,id:it.id||uid(),x:clamp(Number(it.x)||.5,.03,.97),y:clamp(Number(it.y)||.5,.05,.95),pinned:!!it.pinned};
+    if(clean.type==='frenchDeck40'){
+      clean.deckRemaining=Array.isArray(clean.deckRemaining)?clean.deckRemaining.filter(v=>FRENCH40.includes(v)):shuffledDeck40();
+      clean.value=typeof clean.value==='string'&&FRENCH40.includes(clean.value)?clean.value:null;
+    }
+    return clean;
+  });
   state.mode=obj.mode==='game'?'game':'composition'; state.selectedId=null;
   state.zoom=clamp(Number(obj.zoom)||1,.6,2); updateZoomUI();
   if(obj.theme) applyTheme(obj.theme); if(typeof obj.magnetOn==='boolean'){state.magnetOn=obj.magnetOn;updateMagnet();}
@@ -241,7 +263,7 @@ function resizeRenderer(){
 function updateVisualPositions(){
   const w=els.workspace.clientWidth||1,h=els.workspace.clientHeight||1,size=itemSize();
   for(const it of state.items){const def=BY_TYPE[it.type];if(def.kind==='die'){const m=diceMeshes.get(it.id);if(!m)continue;m.position.set(it.x*w-w/2,h/2-it.y*h,0);const scale=it.type.startsWith('die6')?size:it.type==='die8mixed'?size*.67:it.type==='die12math'?size*.62:size*.60;m.scale.setScalar(scale);}
-    const el=els.domLayer.querySelector(`[data-id="${it.id}"]`);if(el){el.style.left=(it.x*100)+'%';el.style.top=(it.y*100)+'%';if(def.kind==='die'){el.style.width=size+'px';el.style.height=size+'px';}else if(def.kind==='cyl'){el.style.width=(size*.72)+'px';el.style.height=(size*1.05)+'px';el.style.setProperty('--cyl-font',Math.max(26,size*.46)+'px');}else if(def.kind==='line'){el.style.width=(it.width?it.width*state.zoom:Math.max(110*state.zoom,size*1.7))+'px';}else if(def.kind==='symbol'){el.style.width=(size*1.14)+'px';el.style.height=(size*.76)+'px';el.style.setProperty('--prompt-font',Math.max(28,size*.48)+'px');}}}
+    const el=els.domLayer.querySelector(`[data-id="${it.id}"]`);if(el){el.style.left=(it.x*100)+'%';el.style.top=(it.y*100)+'%';if(def.kind==='die'){el.style.width=size+'px';el.style.height=size+'px';}else if(def.kind==='cyl'){el.style.width=(size*.72)+'px';el.style.height=(size*1.05)+'px';el.style.setProperty('--cyl-font',Math.max(26,size*.46)+'px');}else if(def.kind==='card'){el.style.width=(size*.82)+'px';el.style.height=(size*1.18)+'px';el.style.setProperty('--card-rank',Math.max(20,size*.30)+'px');el.style.setProperty('--card-suit',Math.max(28,size*.42)+'px');}else if(def.kind==='line'){el.style.width=(it.width?it.width*state.zoom:Math.max(110*state.zoom,size*1.7))+'px';}else if(def.kind==='symbol'){el.style.width=(size*1.14)+'px';el.style.height=(size*.76)+'px';el.style.setProperty('--prompt-font',Math.max(28,size*.48)+'px');}}}
 }
 function animationLoop(now){
   const dt=now-lastFrame;lastFrame=now;
@@ -256,11 +278,28 @@ function renderItems(){
   for(const item of state.items){const def=BY_TYPE[item.type];let el=document.createElement('div');el.dataset.id=item.id;el.className='workspace-item '+(item.pinned?'pinned ':'');
     if(def.kind==='die'){el.classList.add('die-hit');el.innerHTML='<span class="item-pin">📌</span>';}
     else if(def.kind==='cyl'){el.classList.add('cylinder');el.innerHTML='<span class="item-pin">📌</span><div class="cyl-window"><div class="cyl-track"><div class="cyl-cell prev"></div><div class="cyl-cell current"></div><div class="cyl-cell next"></div></div><div class="cyl-guide"></div><div class="cyl-shine"></div></div>';setCylinderCells(el,item);}
+    else if(def.kind==='card'){
+      el.classList.add('playing-card');el.innerHTML='<span class="item-pin">📌</span><div class="card-face"></div><span class="deck-count"></span>';renderPlayingCard(el,item);
+    }
     else if(def.kind==='line'){el.classList.add('fraction-line');el.innerHTML='<div class="line-core"></div><span class="resize-handle left" data-resize="left"></span><span class="resize-handle right" data-resize="right"></span>';}
     else if(def.kind==='symbol'){el.classList.add('answer-prompt');el.innerHTML='<span>=?</span>';}
     if(item.id===state.selectedId)el.classList.add('selected');els.domLayer.appendChild(el);
   }
   els.empty.classList.toggle('hidden',state.items.length>0); updateCounter(); updateSelectionUI(); updateVisualPositions();
+}
+function renderPlayingCard(el,item){
+  const face=el.querySelector('.card-face'),count=el.querySelector('.deck-count');
+  const remaining=Array.isArray(item.deckRemaining)?item.deckRemaining.length:40;
+  if(count) count.textContent=remaining;
+  if(!face) return;
+  if(!item.value){
+    face.className='card-face card-back';
+    face.innerHTML='<div class="back-mark">A!</div>';
+    return;
+  }
+  const {rank,suit,red}=cardParts(item.value);
+  face.className='card-face'+(red?' red':' black');
+  face.innerHTML=`<div class="card-corner top"><b>${rank}</b><span>${suit}</span></div><div class="card-center"><b>${rank}</b><span>${suit}</span></div><div class="card-corner bottom"><b>${rank}</b><span>${suit}</span></div>`;
 }
 function setCylinderCells(el,item){const def=BY_TYPE[item.type],vals=def.values,n=vals.length,idx=((item.value??0)%n+n)%n;item.value=idx;el.querySelector('.prev').textContent=vals[(idx-1+n)%n];el.querySelector('.current').textContent=vals[idx];el.querySelector('.next').textContent=vals[(idx+1)%n];}
 function updateItemPin(id){const el=els.domLayer.querySelector(`[data-id="${id}"]`),it=state.items.find(x=>x.id===id);if(el&&it)el.classList.toggle('pinned',it.pinned);}
@@ -277,21 +316,21 @@ function applyModeUI(){
 
 // ---------------- Catalogo ----------------
 function renderCatalog(){
-  const sections=[...new Set(CATALOG.map(x=>x.section))];els.catalogList.innerHTML=sections.map(sec=>`<div class="cat-section"><div class="cat-section-title">${sec}</div>${CATALOG.filter(x=>x.section===sec).map(d=>`<div class="cat-row" data-type="${d.type}"><div class="cat-preview ${d.kind==='cyl'?'cyl':d.kind==='line'?'line':d.kind==='symbol'?'symbol':''}">${d.preview}</div><div class="cat-info"><b>${d.name}</b><small>${d.hint}</small></div><div class="stepper"><button data-delta="-1">−</button><span>${state.catalogCounts[d.type]||0}</span><button data-delta="1">+</button></div></div>`).join('')}</div>`).join('');updateCatalogCounter();
+  const sections=[...new Set(CATALOG.map(x=>x.section))];els.catalogList.innerHTML=sections.map(sec=>`<div class="cat-section"><div class="cat-section-title">${sec}</div>${CATALOG.filter(x=>x.section===sec).map(d=>`<div class="cat-row" data-type="${d.type}"><div class="cat-preview ${d.kind==='cyl'?'cyl':d.kind==='card'?'card':d.kind==='line'?'line':d.kind==='symbol'?'symbol':''}">${d.preview}</div><div class="cat-info"><b>${d.name}</b><small>${d.hint}</small></div><div class="stepper"><button data-delta="-1">−</button><span>${state.catalogCounts[d.type]||0}</span><button data-delta="1">+</button></div></div>`).join('')}</div>`).join('');updateCatalogCounter();
 }
 function catalogPending(){return Object.values(state.catalogCounts).reduce((a,b)=>a+b,0)}
 function updateCatalogCounter(){const p=catalogPending();els.catalogCounter.textContent=`${state.items.length+p} / ${MAX_ITEMS}`;els.catalogAdd.disabled=p===0||state.items.length+p>MAX_ITEMS;els.catalogAdd.style.opacity=els.catalogAdd.disabled?'.45':'1';}
 function openCatalog(){if(state.mode!=='composition')return;renderCatalog();els.catalogPanel.style.pointerEvents='auto';els.catalogPanel.setAttribute('aria-hidden','false');requestAnimationFrame(()=>{els.catalogPanel.classList.add('open');els.panelShade.classList.add('show');});}
 function closeCatalog(){els.catalogPanel.classList.remove('open');els.catalogPanel.setAttribute('aria-hidden','true');els.panelShade.classList.remove('show');setTimeout(()=>{if(!els.catalogPanel.classList.contains('open'))els.catalogPanel.style.pointerEvents='none';},260);}
 function addPending(){const total=catalogPending();if(!total)return;if(state.items.length+total>MAX_ITEMS){toast('Massimo 20 elementi');return;}for(const [type,count] of Object.entries(state.catalogCounts)){for(let k=0;k<count;k++)addItem(type,false);}state.catalogCounts={};autoLayout(true);renderCatalog();closeCatalog();rebuildAll();soundClick();}
-function addItem(type,render=true){const def=BY_TYPE[type];const item={id:uid(),type,x:.5+(Math.random()-.5)*.08,y:.5+(Math.random()-.5)*.08,pinned:false,value:def.values?.length?Math.floor(Math.random()*def.values.length):0};if(def.kind==='line')item.width=150;state.items.push(item);if(render)rebuildAll();return item;}
+function addItem(type,render=true){const def=BY_TYPE[type];const item={id:uid(),type,x:.5+(Math.random()-.5)*.08,y:.5+(Math.random()-.5)*.08,pinned:false,value:def.values?.length?Math.floor(Math.random()*def.values.length):0};if(def.kind==='line')item.width=150;if(def.kind==='card'){item.value=null;item.deckRemaining=shuffledDeck40();}state.items.push(item);if(render)rebuildAll();return item;}
 
 // ---------------- Drag / tap / long press ----------------
 let interaction=null;
 function pointFraction(e){const r=els.workspace.getBoundingClientRect();return {x:clamp((e.clientX-r.left)/r.width,.025,.975),y:clamp((e.clientY-r.top)/r.height,.04,.96),px:e.clientX-r.left,py:e.clientY-r.top,w:r.width,h:r.height};}
 function snapPosition(item,x,y){if(!state.magnetOn)return{x,y};const w=els.workspace.clientWidth,h=els.workspace.clientHeight,th=15;for(const o of state.items){if(o.id===item.id)continue;if(Math.abs((o.x-x)*w)<th)x=o.x;if(Math.abs((o.y-y)*h)<th)y=o.y;}return{x,y};}
 function selectItem(id){state.selectedId=id;updateSelectionUI();}
-function togglePin(item){if(!['die','cyl'].includes(BY_TYPE[item.type].kind))return;item.pinned=!item.pinned;updateItemPin(item.id);soundPin();toast(item.pinned?'Risultato congelato 📌':'Risultato sbloccato');saveLast();}
+function togglePin(item){if(!['die','cyl','card'].includes(BY_TYPE[item.type].kind))return;item.pinned=!item.pinned;updateItemPin(item.id);soundPin();toast(item.pinned?'Risultato congelato 📌':'Risultato sbloccato');saveLast();}
 
 els.domLayer.addEventListener('pointerdown',e=>{
   const el=e.target.closest('.workspace-item');if(!el)return;const item=state.items.find(x=>x.id===el.dataset.id);if(!item)return;ensureAudio();
@@ -330,8 +369,26 @@ function spinCylinder(item,delay=0,duration=750){
   if(item.pinned)return;const el=els.domLayer.querySelector(`[data-id="${item.id}"]`);if(!el)return;setTimeout(()=>{soundRoll();el.classList.add('spinning');let steps=0;const target=Math.floor(Math.random()*BY_TYPE[item.type].values.length);const iv=setInterval(()=>{stepCylinder(item,Math.random()>.5?1:-1);steps++;},70);setTimeout(()=>{clearInterval(iv);item.value=target;setCylinderCells(el,item);el.classList.remove('spinning');soundClick();saveLast();},duration);},delay);
 }
 function rollDie(item,delay=0,duration=900){if(item.pinned)return;const def=BY_TYPE[item.type],idx=Math.floor(Math.random()*def.values.length);item.value=idx;setTimeout(soundRoll,delay);const m=diceMeshes.get(item.id);if(m)orientDie(m,idx,true,duration,delay);setTimeout(()=>soundClick(),delay+duration*.9);saveLast();}
-function randomizeItem(item){const k=BY_TYPE[item.type].kind;if(k==='die')rollDie(item,0,900+Math.random()*250);else if(k==='cyl')spinCylinder(item,0,650+Math.random()*300);}
-function shuffleAll(){const active=state.items.filter(i=>!i.pinned&&['die','cyl'].includes(BY_TYPE[i.type].kind));if(!active.length){toast('Nessun elemento da mescolare');return;}active.forEach((it,i)=>{const delay=Math.random()*180,dur=720+Math.random()*520;if(BY_TYPE[it.type].kind==='die')rollDie(it,delay,dur);else spinCylinder(it,delay,dur);});}
+function drawCard(item,delay=0){
+  if(item.pinned)return;
+  if(!Array.isArray(item.deckRemaining)) item.deckRemaining=shuffledDeck40();
+  if(item.deckRemaining.length===0){toast('Mazzo esaurito: premi RIMESCOLA MAZZI');return;}
+  setTimeout(()=>{
+    const idx=Math.floor(Math.random()*item.deckRemaining.length);
+    item.value=item.deckRemaining.splice(idx,1)[0];
+    const el=els.domLayer.querySelector(`[data-id="${item.id}"]`);
+    if(el){el.classList.remove('card-pop');void el.offsetWidth;renderPlayingCard(el,item);el.classList.add('card-pop');}
+    soundClick();saveLast();
+  },delay);
+}
+function resetDecks(){
+  const decks=state.items.filter(i=>BY_TYPE[i.type]?.kind==='card');
+  if(!decks.length){toast('Nessun mazzo sul tavolo');return;}
+  decks.forEach(i=>{i.deckRemaining=shuffledDeck40();i.value=null;i.pinned=false;});
+  renderItems();saveLast();soundClick();toast(decks.length===1?'Mazzo rimescolato · 40 carte':`${decks.length} mazzi rimescolati`);
+}
+function randomizeItem(item){const k=BY_TYPE[item.type].kind;if(k==='die')rollDie(item,0,900+Math.random()*250);else if(k==='cyl')spinCylinder(item,0,650+Math.random()*300);else if(k==='card')drawCard(item,0);}
+function shuffleAll(){const active=state.items.filter(i=>!i.pinned&&['die','cyl','card'].includes(BY_TYPE[i.type].kind));if(!active.length){toast('Nessun elemento da mescolare');return;}active.forEach((it,i)=>{const delay=Math.random()*180,dur=720+Math.random()*520;if(BY_TYPE[it.type].kind==='die')rollDie(it,delay,dur);else if(BY_TYPE[it.type].kind==='cyl')spinCylinder(it,delay,dur);else drawCard(it,delay);});}
 
 function autoLayout(silent=false){const n=state.items.length;if(!n)return;const w=els.workspace.clientWidth||900,h=els.workspace.clientHeight||450,aspect=w/h;let cols=Math.ceil(Math.sqrt(n*aspect));cols=clamp(cols,1,n);const rows=Math.ceil(n/cols);state.items.forEach((it,i)=>{const c=i%cols,r=Math.floor(i/cols);it.x=(c+1)/(cols+1);it.y=(r+1)/(rows+1);});updateVisualPositions();saveLast();if(!silent)toast('Elementi disposti automaticamente');}
 
@@ -365,7 +422,7 @@ els.catalogList.addEventListener('click',e=>{const b=e.target.closest('button[da
 els.catalogAdd.addEventListener('click',addPending);els.autoLayout.addEventListener('click',()=>autoLayout(false));
 els.duplicate.addEventListener('click',()=>{const it=state.items.find(x=>x.id===state.selectedId);if(!it)return;if(state.items.length>=MAX_ITEMS){toast('Massimo 20 elementi');return;}const c=deepCopy(it);c.id=uid();c.x=clamp(it.x+.045,.03,.97);c.y=clamp(it.y+.05,.05,.95);c.pinned=false;state.items.push(c);state.selectedId=c.id;rebuildAll();soundClick();});
 els.delete.addEventListener('click',()=>{const id=state.selectedId;if(!id)return;state.items=state.items.filter(x=>x.id!==id);state.selectedId=null;rebuildAll();soundClick();});
-els.shuffleAll.addEventListener('click',shuffleAll);els.unpinAll.addEventListener('click',()=>{let n=0;state.items.forEach(i=>{if(i.pinned){i.pinned=false;n++;}});renderItems();saveLast();toast(n?`${n} elementi sbloccati`:'Nessun elemento congelato');});
+els.shuffleAll.addEventListener('click',shuffleAll);els.resetDecks?.addEventListener('click',resetDecks);els.unpinAll.addEventListener('click',()=>{let n=0;state.items.forEach(i=>{if(i.pinned){i.pinned=false;n++;}});renderItems();saveLast();toast(n?`${n} elementi sbloccati`:'Nessun elemento congelato');});
 els.fullscreen.addEventListener('click',async()=>{try{if(!document.fullscreenElement)await document.documentElement.requestFullscreen();else await document.exitFullscreen();}catch{}});
 els.zoomOut.addEventListener('click',()=>{soundClick();setZoom(state.zoom-.1);});
 els.zoomIn.addEventListener('click',()=>{soundClick();setZoom(state.zoom+.1);});
