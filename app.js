@@ -263,7 +263,7 @@ function resizeRenderer(){
 function updateVisualPositions(){
   const w=els.workspace.clientWidth||1,h=els.workspace.clientHeight||1,size=itemSize();
   for(const it of state.items){const def=BY_TYPE[it.type];if(def.kind==='die'){const m=diceMeshes.get(it.id);if(!m)continue;m.position.set(it.x*w-w/2,h/2-it.y*h,0);const scale=it.type.startsWith('die6')?size:it.type==='die8mixed'?size*.67:it.type==='die12math'?size*.62:size*.60;m.scale.setScalar(scale);}
-    const el=els.domLayer.querySelector(`[data-id="${it.id}"]`);if(el){el.style.left=(it.x*100)+'%';el.style.top=(it.y*100)+'%';if(def.kind==='die'){el.style.width=size+'px';el.style.height=size+'px';}else if(def.kind==='cyl'){el.style.width=(size*.72)+'px';el.style.height=(size*1.05)+'px';el.style.setProperty('--cyl-font',Math.max(26,size*.46)+'px');}else if(def.kind==='card'){el.style.width=(size*.82)+'px';el.style.height=(size*1.18)+'px';el.style.setProperty('--card-rank',Math.max(20,size*.30)+'px');el.style.setProperty('--card-suit',Math.max(28,size*.42)+'px');}else if(def.kind==='line'){el.style.width=(it.width?it.width*state.zoom:Math.max(110*state.zoom,size*1.7))+'px';}else if(def.kind==='symbol'){el.style.width=(size*1.14)+'px';el.style.height=(size*.76)+'px';el.style.setProperty('--prompt-font',Math.max(28,size*.48)+'px');}}}
+    const el=els.domLayer.querySelector(`[data-id="${it.id}"]`);if(el){el.style.left=(it.x*100)+'%';el.style.top=(it.y*100)+'%';if(def.kind==='die'){el.style.width=size+'px';el.style.height=size+'px';}else if(def.kind==='cyl'){el.style.width=(size*.72)+'px';el.style.height=(size*1.05)+'px';el.style.setProperty('--cyl-font',Math.max(26,size*.46)+'px');}else if(def.kind==='card'){el.style.width=(size*.78)+'px';el.style.height=(size*1.08)+'px';el.style.setProperty('--card-rank',Math.max(18,size*.22)+'px');el.style.setProperty('--card-suit',Math.max(30,size*.36)+'px');}else if(def.kind==='line'){el.style.width=(it.width?it.width*state.zoom:Math.max(110*state.zoom,size*1.7))+'px';}else if(def.kind==='symbol'){el.style.width=(size*1.14)+'px';el.style.height=(size*.76)+'px';el.style.setProperty('--prompt-font',Math.max(28,size*.48)+'px');}}}
 }
 function animationLoop(now){
   const dt=now-lastFrame;lastFrame=now;
@@ -288,18 +288,19 @@ function renderItems(){
   els.empty.classList.toggle('hidden',state.items.length>0); updateCounter(); updateSelectionUI(); updateVisualPositions();
 }
 function renderPlayingCard(el,item){
-  const face=el.querySelector('.card-face'),count=el.querySelector('.deck-count');
+  const face=el.querySelector('.card-face');
+  const count=el.querySelector('.deck-count');
   const remaining=Array.isArray(item.deckRemaining)?item.deckRemaining.length:40;
   if(count) count.textContent=remaining;
   if(!face) return;
   if(!item.value){
     face.className='card-face card-back';
-    face.innerHTML='<div class="back-mark">A!</div>';
+    face.innerHTML='<div class="back-pattern"></div><div class="back-mark">A!</div>';
     return;
   }
   const {rank,suit,red}=cardParts(item.value);
-  face.className='card-face'+(red?' red':' black');
-  face.innerHTML=`<div class="card-corner top"><b>${rank}</b><span>${suit}</span></div><div class="card-center"><b>${rank}</b><span>${suit}</span></div><div class="card-corner bottom"><b>${rank}</b><span>${suit}</span></div>`;
+  face.className='card-face '+(red?'red':'black');
+  face.innerHTML=`<div class="card-corner top"><b>${rank}</b><span>${suit}</span></div><div class="card-center"><span>${suit}</span></div><div class="card-corner bottom"><b>${rank}</b><span>${suit}</span></div>`;
 }
 function setCylinderCells(el,item){const def=BY_TYPE[item.type],vals=def.values,n=vals.length,idx=((item.value??0)%n+n)%n;item.value=idx;el.querySelector('.prev').textContent=vals[(idx-1+n)%n];el.querySelector('.current').textContent=vals[idx];el.querySelector('.next').textContent=vals[(idx+1)%n];}
 function updateItemPin(id){const el=els.domLayer.querySelector(`[data-id="${id}"]`),it=state.items.find(x=>x.id===id);if(el&&it)el.classList.toggle('pinned',it.pinned);}
